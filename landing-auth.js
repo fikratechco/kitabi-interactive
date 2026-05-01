@@ -96,7 +96,7 @@ function Auth({ mode, onAuth, onSwitchMode, onBack }) {
     setError('');
     setLoading(true);
     try {
-      const auth = new window.AuthService?.();
+      const auth = typeof window.AuthService === 'function' ? new window.AuthService() : null;
       
       if (!auth) {
         throw new Error('Authentication service not available');

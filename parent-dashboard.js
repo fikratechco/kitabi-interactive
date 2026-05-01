@@ -10,7 +10,7 @@ function ParentDashboard({ user, children, setChildren, onSelectChild, onAddChil
     if (useSupabase && user?.id && children.length === 0) {
       const loadChildren = async () => {
         try {
-          const dataService = new window.DataService?.();
+          const dataService = typeof window.DataService === 'function' ? new window.DataService() : null;
           if (dataService) {
             const childrenData = await dataService.getChildren(user.id);
             if (childrenData && childrenData.length > 0) {

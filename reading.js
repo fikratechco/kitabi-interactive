@@ -107,7 +107,7 @@ function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId,
     if (finished && user?.id && selectedText?.id && selectedBook?.id) {
       const saveProgress = async () => {
         try {
-          const dataService = new window.DataService?.();
+          const dataService = typeof window.DataService === 'function' ? new window.DataService() : null;
           if (dataService) {
             await dataService.recordTextRead(user.id, selectedBook.id, selectedText.id, 'read');
           }
