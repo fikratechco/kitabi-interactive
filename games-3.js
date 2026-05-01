@@ -5,13 +5,16 @@ const { useState, useEffect, useRef } = React;
 // GAME 7 - Shadow match (visual tracking)
 // Uses AudioManager for letter/word pronunciation via speak()
 // ============================================
-function GameShadow({ onComplete }) {
-  const items = [
+function GameShadow({ onComplete, gameContext }) {
+  const defaultItems = [
     { word: 'مئزر', color: '#E89B7C' },
-    { word: 'قلم', color: '#9B7FBC' },
+    { word: 'قلم',  color: '#9B7FBC' },
     { word: 'كتاب', color: '#6FB87F' },
-    { word: 'باب', color: '#4A90D9' },
+    { word: 'باب',  color: '#4A90D9' },
   ];
+  const items = (gameContext?.shadowWords && gameContext.shadowWords.length >= 4)
+    ? gameContext.shadowWords
+    : defaultItems;
 
   const [matched, setMatched] = useState({});
   const [over, setOver] = useState(null);
@@ -87,35 +90,31 @@ function GameShadow({ onComplete }) {
 // ============================================
 // GAME 8 - Sound manipulation (delete/replace/rhyme)
 // ============================================
-function GameManipulation({ onComplete }) {
+function GameManipulation({ onComplete, gameContext }) {
+  const defaultManip = {
+    del:   { word: 'سماء', letter: 'س', result: 'ماء' },
+    rep:   { word: 'نار',  from: 'ن', to: 'د', result: 'دار' },
+    rhyme: { word: 'قمر',  options: [{ w: 'سفر', correct: true }, { w: 'كتاب', correct: false }, { w: 'حجر', correct: true }, { w: 'شمس', correct: false }] },
+  };
+  const md = gameContext?.manipData || defaultManip;
+
   const [step, setStep] = useState(0); // 0: delete, 1: replace, 2: rhyme
   const [removed, setRemoved] = useState(false);
   const [replaced, setReplaced] = useState(false);
   const [rhymePick, setRhymePick] = useState(null);
   const [reward, setReward] = useState(false);
 
-  // Step 0 — حذف: سماء → ماء (remove س)
-  // Step 1 — استبدال: نار → دار (replace ن with د)
-  // Step 2 — قافية: قمر → ?
-
-  const rhymeOptions = [
-    { w: 'سفر', correct: true },
-    { w: 'كتاب', correct: false },
-    { w: 'حجر', correct: true },
-    { w: 'شمس', correct: false },
-  ];
+  const rhymeOptions = md.rhyme.options;
 
   const doDelete = () => {
     setRemoved(true);
     playTone(440, 0.15);
-    setTimeout(() => speak('ماء', 0.7), 600);
     setTimeout(() => setStep(1), 1800);
   };
 
   const doReplace = () => {
     setReplaced(true);
     playSuccess();
-    setTimeout(() => speak('دار', 0.7), 600);
     setTimeout(() => setStep(2), 1800);
   };
 
@@ -137,47 +136,49 @@ function GameManipulation({ onComplete }) {
 
       {step === 0 && (
         <div className="manip-stage">
-          <HintBubble>إذا حذفنا حرف <strong>س</strong> من كلمة <strong>سماء</strong>، ماذا تصبح؟</HintBubble>
+          <HintBubble>إذا حذفنا حرف <strong>{md.del.letter}</strong> من كلمة <strong>{md.del.word}</strong>، ماذا تصبح؟</HintBubble>
           <div className="word-letters">
-            {[...'سماء'].map((c, i) => (
-              <span key={i} className={'letter' + (i === 0 ? ' target' : '') + (removed && i === 0 ? ' removed' : '')}>
-                {c}
+            {[...md.del.word].map((ch, i) => (
+              <span key={i} className={'letter' + (ch === md.del.letter && i === 0 ? ' target' : '') + (removed && ch === md.del.letter && i === 0 ? ' removed' : '')}>
+                {ch}
               </span>
             ))}
           </div>
           {!removed ? (
-            <button className="btn-primary" onClick={doDelete}>🗑️ احذف الحرف س</button>
+            <button className="btn-primary" onClick={doDelete}>🗑️ احذف الحرف {md.del.letter}</button>
           ) : (
-            <div style={{ fontSize: 32, color: 'var(--accent-green)', fontWeight: 700 }}>✓ ماء</div>
+            <div style={{ fontSize: 32, color: 'var(--accent-green)', fontWeight: 700 }}>✓ {md.del.result}</div>
           )}
         </div>
       )}
 
       {step === 1 && (
         <div className="manip-stage">
-          <HintBubble>استبدل حرف <strong>ن</strong> بحرف <strong>د</strong> في كلمة <strong>نار</strong>:</HintBubble>
+          <HintBubble>استبدل حرف <strong>{md.rep.from}</strong> بحرف <strong>{md.rep.to}</strong> في كلمة <strong>{md.rep.word}</strong>:</HintBubble>
           <div className="word-letters">
-            <span className={'letter' + (replaced ? ' replaced' : ' target')}>{replaced ? 'د' : 'ن'}</span>
-            <span className="letter">ا</span>
-            <span className="letter">ر</span>
+            {[...md.rep.word].map((ch, i) => (
+              <span key={i} className={'letter' + (ch === md.rep.from && i === 0 ? (replaced ? ' replaced' : ' target') : '')}>
+                {replaced && ch === md.rep.from && i === 0 ? md.rep.to : ch}
+              </span>
+            ))}
           </div>
           {!replaced ? (
             <div className="equation">
-              <span style={{ fontSize: 40, fontWeight: 700, color: 'var(--accent-coral)' }}>ن</span>
+              <span style={{ fontSize: 40, fontWeight: 700, color: 'var(--accent-coral)' }}>{md.rep.from}</span>
               <span>←</span>
-              <span style={{ fontSize: 40, fontWeight: 700, color: 'var(--accent-green)' }}>د</span>
+              <span style={{ fontSize: 40, fontWeight: 700, color: 'var(--accent-green)' }}>{md.rep.to}</span>
               <button className="btn-primary" onClick={doReplace} style={{ marginInlineStart: 12 }}>استبدل</button>
             </div>
           ) : (
-            <div style={{ fontSize: 32, color: 'var(--accent-green)', fontWeight: 700 }}>✓ دار</div>
+            <div style={{ fontSize: 32, color: 'var(--accent-green)', fontWeight: 700 }}>✓ {md.rep.result}</div>
           )}
         </div>
       )}
 
       {step === 2 && (
         <div className="manip-stage">
-          <HintBubble>اختر الكلمات التي تنتهي بنفس صوت كلمة <strong>قمر</strong> (تنتهي بـ "ر"):</HintBubble>
-          <div style={{ fontSize: 56, fontWeight: 700, color: 'var(--accent-blue)' }}>قمـ<span style={{ color: 'var(--accent-coral)' }}>ر</span></div>
+          <HintBubble>اختر الكلمات التي تشبه في نهايتها كلمة <strong>{md.rhyme.word}</strong>:</HintBubble>
+          <div style={{ fontSize: 56, fontWeight: 700, color: 'var(--accent-blue)' }}>{md.rhyme.word}</div>
           <div className="rhyme-options">
             {rhymeOptions.map((o, i) => (
               <button
