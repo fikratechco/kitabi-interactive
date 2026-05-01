@@ -5,17 +5,27 @@ const { useState, useEffect, useRef } = React;
 // GAME 4 - Letter positions + fill blanks
 // Uses AudioManager for letter pronunciation via speak()
 // ============================================
-function GamePosition({ onComplete }) {
-  const targetLetter = 'غ';
+function GamePosition({ onComplete, gameContext }) {
+  const targetLetter = gameContext?.targetLetter || 'غ';
+  const lp = gameContext?.letterPositions || {};
+
+  // Build position examples: find letter index in each word
+  const makePosition = (label, word) => {
+    const chars = [...String(word)];
+    const idx = chars.indexOf(targetLetter);
+    const mark = idx >= 0 ? [idx, idx + 1] : [0, 1];
+    return { label, word: String(word), mark };
+  };
+
   const positions = [
-    { label: 'في الأول', word: 'غزالة', mark: [0, 1] },
-    { label: 'في الوسط', word: 'الغابة', mark: [2, 3] },
-    { label: 'في الآخر', word: 'صبغ', mark: [2, 3] },
+    makePosition('في الأول', lp.start  || (targetLetter + 'مر')),
+    makePosition('في الوسط', lp.middle || ('ال' + targetLetter + 'بة')),
+    makePosition('في الآخر', lp.end    || ('صب' + targetLetter)),
   ];
 
-  const blanks = [
-    { before: 'الـ', after: 'ـابة', answer: 'غ' },
-    { before: '', after: 'ـزال', answer: 'غ' },
+  const blanks = gameContext?.letterBlanks || [
+    { before: 'الـ', after: 'ـابة', answer: targetLetter },
+    { before: '', after: 'ـزال', answer: targetLetter },
   ];
 
   const [filled, setFilled] = useState({});
@@ -43,8 +53,8 @@ function GamePosition({ onComplete }) {
       <p className="page-subtitle">شاهد كيف يظهر الحرف في أماكن مختلفة من الكلمة.</p>
 
       <div style={{ textAlign: 'center', margin: '24px 0' }}>
-        <div style={{ fontSize: 120, fontWeight: 700, color: 'var(--accent-coral)' }}>غ</div>
-        <div style={{ fontSize: 28, fontWeight: 600, color: 'var(--ink)' }}>غـزالـة 🦌</div>
+        <div style={{ fontSize: 120, fontWeight: 700, color: 'var(--accent-coral)' }}>{targetLetter}</div>
+        <div style={{ fontSize: 28, fontWeight: 600, color: 'var(--ink)' }}>{positions[0].word}</div>
       </div>
 
       <div className="position-grid">
@@ -81,7 +91,7 @@ function GamePosition({ onComplete }) {
       </div>
 
       <div className="letter-tiles">
-        {['غ', 'ع', 'ف'].map((l, i) => (
+        {[targetLetter, targetLetter === 'غ' ? 'ع' : 'غ', targetLetter === 'ف' ? 'ق' : 'ف'].map((l, i) => (
           <div
             key={i}
             className="letter-tile"
@@ -101,7 +111,8 @@ function GamePosition({ onComplete }) {
 // ============================================
 // GAME 5 - Letter assembly (broken letter pieces)
 // ============================================
-function GameAssembly({ onComplete }) {
+function GameAssembly({ onComplete, gameContext }) {
+  const targetLetter = gameContext?.targetLetter || 'س';
   // Letter "س" broken into: 3 teeth (top) + base (bottom)
   const [snapped, setSnapped] = useState({ teeth: false, base: false });
   const [draggingPiece, setDraggingPiece] = useState(null);
@@ -118,16 +129,16 @@ function GameAssembly({ onComplete }) {
 
   useEffect(() => {
     if (snapped.teeth && snapped.base) {
-      setTimeout(() => { speak('سين', 0.7); setReward(true); }, 600);
+      setTimeout(() => { setReward(true); }, 600);
     }
   }, [snapped]);
 
   return (
     <div className="page-card pop-in">
-      <h2 className="page-title">🧩 تركيب الحرف: س</h2>
+      <h2 className="page-title">🧩 تركيب الحرف: {targetLetter}</h2>
       <p className="page-subtitle">اسحب أجزاء الحرف إلى مكانها الصحيح.</p>
 
-      <HintBubble>الحرف <strong>س</strong> يتكون من <strong>أسنان</strong> في الأعلى و<strong>قاعدة</strong> في الأسفل.</HintBubble>
+      <HintBubble>الحرف <strong>{targetLetter}</strong> يتكون من <strong>جزء علوي</strong> و<strong>قاعدة</strong> — ركّبهما معاً.</HintBubble>
 
       <div className="assembly-stage">
         <div
@@ -135,12 +146,12 @@ function GameAssembly({ onComplete }) {
           onDragOver={e => e.preventDefault()}
           onDrop={onDrop}
         >
-          <div className="ghost-letter">س</div>
+          <div className="ghost-letter">{targetLetter}</div>
           {snapped.teeth && snapped.base && (
             <div style={{
               position: 'absolute', fontSize: 240, fontWeight: 700,
               color: 'var(--accent-coral)', animation: 'pop-in 0.5s'
-            }}>س</div>
+            }}>{targetLetter}</div>
           )}
           {snapped.teeth && !snapped.base && (
             <div style={{ position: 'absolute', top: '20%', fontSize: 100, color: 'var(--accent-coral)' }}>﹏﹏﹏</div>
@@ -180,7 +191,7 @@ function GameAssembly({ onComplete }) {
         </div>
       </div>
 
-      <Reward show={reward} onClose={() => { setReward(false); onComplete(); }} message="حرف السين ✨" />
+      <Reward show={reward} onClose={() => { setReward(false); onComplete(); }} message={"حرف " + targetLetter + " ✨"} />
     </div>
   );
 }
@@ -188,12 +199,33 @@ function GameAssembly({ onComplete }) {
 // ============================================
 // GAME 6 - Missing part of letter
 // ============================================
-function GameMissing({ onComplete }) {
-  // Letter ز missing the dot
+const LETTER_BASE_PAIRS = {
+  'ز': { base: 'ر', missing: 'نقطة', correctIdx: 0 },
+  'ن': { base: 'ر', missing: 'نقطة', correctIdx: 0 },
+  'ب': { base: 'ر', missing: 'نقطة', correctIdx: 0 },
+  'ت': { base: 'ر', missing: 'نقطتان', correctIdx: 0 },
+  'ث': { base: 'ر', missing: 'ثلاث نقاط', correctIdx: 0 },
+  'ق': { base: 'ف', missing: 'نقطة', correctIdx: 0 },
+  'غ': { base: 'ع', missing: 'نقطة', correctIdx: 0 },
+  'ش': { base: 'س', missing: 'ثلاث نقاط', correctIdx: 0 },
+  'خ': { base: 'ح', missing: 'نقطة', correctIdx: 0 },
+  'ج': { base: 'ح', missing: 'نقطة', correctIdx: 0 },
+  'ذ': { base: 'د', missing: 'نقطة', correctIdx: 0 },
+  'ظ': { base: 'ط', missing: 'نقطة', correctIdx: 0 },
+  'ض': { base: 'ص', missing: 'نقطة', correctIdx: 0 },
+  'ي': { base: 'ن', missing: 'نقطتان', correctIdx: 0 },
+};
+
+function GameMissing({ onComplete, gameContext }) {
+  const targetLetter = gameContext?.targetLetter || 'ز';
+  const pair = LETTER_BASE_PAIRS[targetLetter] || { base: 'ر', missing: 'نقطة', correctIdx: 0 };
+  const baseLetter = pair.base;
+  const missingLabel = pair.missing;
+
   const [chosen, setChosen] = useState(null);
   const [reward, setReward] = useState(false);
 
-  const correctIdx = 0; // dot
+  const correctIdx = pair.correctIdx;
   const options = [
     { svg: <circle cx="35" cy="35" r="14" fill="#1F3A52" />, label: 'نقطة' },
     { svg: <path d="M 8 35 Q 35 8 62 35" stroke="#1F3A52" strokeWidth="6" fill="none" />, label: 'نصف دائرة' },
@@ -219,7 +251,7 @@ function GameMissing({ onComplete }) {
       <HintBubble>هذا الحرف ينقصه شيء... هل هي نقطة، نصف دائرة، أم خط؟</HintBubble>
 
       <div className="broken-letter-display">
-        ر
+        {baseLetter}
         {chosen === correctIdx && (
           <span style={{
             position: 'absolute', top: '-30px', left: '50%',
@@ -229,7 +261,7 @@ function GameMissing({ onComplete }) {
         )}
       </div>
       <div style={{ fontSize: 18, color: 'var(--ink-soft)', marginBottom: 8 }}>
-        {chosen === correctIdx ? 'الحرف هو: ز' : 'يبدو كحرف ر... ولكنه يجب أن يكون ز'}
+        {chosen === correctIdx ? ('الحرف هو: ' + targetLetter) : ('يبدو كحرف ' + baseLetter + '... ولكنه يجب أن يكون ' + targetLetter)}
       </div>
 
       <div className="options-row">
