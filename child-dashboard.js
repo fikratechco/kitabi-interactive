@@ -4,6 +4,20 @@ const { useState, useEffect } = React;
 // LIBRARY is loaded from library-data.js (window.LIBRARY)
 const LIBRARY = window.LIBRARY;
 
+function getTextContextIcon(text, book) {
+  if (text?.icon) return text.icon;
+  const scope = [text?.title, text?.desc, ...(text?.tags || []), ...(text?.body || [])].join(' ');
+  if (/مدرسة|قسم|تلميذ|جرس|نشيد/.test(scope)) return '🏫';
+  if (/عائل|أم|أب|أخت|جدة|بيت|زفاف/.test(scope)) return '👨‍👩‍👧‍👦';
+  if (/ريف|قرية|قمح|سنابل|مزرعة|نخيل/.test(scope)) return '🌾';
+  if (/رياضة|كرة|مباراة|فريق|ملعب/.test(scope)) return '⚽';
+  if (/بيئة|ماء|واحة|نظافة|شارع/.test(scope)) return '🌱';
+  if (/صحة|غذاء|فطور|طبيب|أسنان|حليب/.test(scope)) return '🍎';
+  if (/اتصال|أنترنت|حاسوب|هاتف|تلفاز|بريد/.test(scope)) return '📡';
+  if (/تراث|متحف|الأمازيغي|زربية|مناسبات/.test(scope)) return '🏛️';
+  return text?.emoji || book?.emoji || '📘';
+}
+
 // ============================================
 // CHILD DASHBOARD
 // ============================================
@@ -159,11 +173,11 @@ function BookDetail({ book, progress, onPickText, onBack }) {
             <div
               key={t.id}
               className={'text-item' + (completed ? ' completed' : '')}
-              onClick={() => onPickText(t)}
+              onClick={() => onPickText({ ...t, displayIcon: getTextContextIcon(t, book) })}
             >
               <div className="num">{completed ? '✓' : i + 1}</div>
               <div className="text-info">
-                <h4>{t.title}</h4>
+                <h4><span style={{ marginInlineEnd: 8 }}>{getTextContextIcon(t, book)}</span>{t.title}</h4>
                 <p>{t.desc}</p>
                 <div className="tags">
                   {t.tags.map((tag, j) => <span key={j} className="tag">{tag}</span>)}
