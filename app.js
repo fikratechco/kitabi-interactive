@@ -401,4 +401,12 @@ function GamesFlow({ text, progress, onGameComplete, onAllDone, onHome, onBackTo
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+// Wait for components to be defined before rendering
+const renderApp = () => {
+  if (typeof Landing === 'undefined') {
+    setTimeout(renderApp, 100);
+    return;
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+};
+renderApp();
