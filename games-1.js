@@ -5,8 +5,8 @@ const { useState, useEffect, useRef } = React;
 // GAME 1 - Train: count words in sentence
 // Uses AudioManager for letter/word pronunciation via speak()
 // ============================================
-function GameTrain({ onComplete }) {
-  const sentence = ['في', 'الغابة', 'تعيش', 'غزالة', 'جميلة'];
+function GameTrain({ onComplete, gameContext }) {
+  const sentence = gameContext?.trainSentence || ['في', 'الغابة', 'تعيش', 'غزالة', 'جميلة'];
   const [detached, setDetached] = useState({});
   const [count, setCount] = useState('');
   const [status, setStatus] = useState(null); // 'correct' | 'wrong'
@@ -81,10 +81,10 @@ function GameTrain({ onComplete }) {
 // ============================================
 // GAME 2 - Drum: tap syllables
 // ============================================
-function GameDrum({ onComplete }) {
+function GameDrum({ onComplete, gameContext }) {
   // Word with target letter ز: "زهور" (3 syllables: ز - هـ - ور)
   // Then with غ: "غزالة" (3: غ - زا - لـة)
-  const challenges = [
+  const challenges = gameContext?.drumChallenges || [
     { word: 'زهور', syllables: ['زُ', 'هـو', 'ر'], image: '🌹' },
     { word: 'غزالة', syllables: ['غـ', 'زا', 'لـة'], image: '🦌' },
   ];
@@ -159,15 +159,20 @@ function GameDrum({ onComplete }) {
 // ============================================
 // GAME 3 - Sound boxes (drag ز / س)
 // ============================================
-function GameSound({ onComplete }) {
-  const words = [
-    { w: 'زهرة', sound: 'zay' },
-    { w: 'سمكة', sound: 'seen' },
-    { w: 'زرافة', sound: 'zay' },
-    { w: 'سلحفاة', sound: 'seen' },
-    { w: 'زيتون', sound: 'zay' },
-    { w: 'سحاب', sound: 'seen' },
-  ];
+function GameSound({ onComplete, gameContext }) {
+  const soundChallenge = gameContext?.soundChallenge || {
+    targetLetter: 'ز',
+    contrastLetter: 'س',
+    words: [
+      { w: 'زهرة', sound: 'target' },
+      { w: 'سمكة', sound: 'contrast' },
+      { w: 'زرافة', sound: 'target' },
+      { w: 'سلحفاة', sound: 'contrast' },
+      { w: 'زيتون', sound: 'target' },
+      { w: 'سحاب', sound: 'contrast' },
+    ],
+  };
+  const words = soundChallenge.words;
 
   const [placed, setPlaced] = useState({});
   const [draggingId, setDraggingId] = useState(null);
@@ -227,36 +232,36 @@ function GameSound({ onComplete }) {
 
       <div className="sound-stage">
         <div
-          className={'sound-box box-zay' + (overBox === 'zay' ? ' over' : '')}
-          onDragOver={e => onDragOver(e, 'zay')}
+          className={'sound-box box-zay' + (overBox === 'target' ? ' over' : '')}
+          onDragOver={e => onDragOver(e, 'target')}
           onDragLeave={onDragLeave}
-          onDrop={e => onDrop(e, 'zay')}
-          onClick={() => onTapBox('zay')}
+          onDrop={e => onDrop(e, 'target')}
+          onClick={() => onTapBox('target')}
         >
           <div className="header">
-            <div className="big-letter">ز</div>
-            <div className="sound-hint">صوت النحلة <span className="onomato">زززز</span> 🐝</div>
+            <div className="big-letter">{soundChallenge.targetLetter}</div>
+            <div className="sound-hint">صوت الحرف <span className="onomato">{soundChallenge.targetLetter}</span></div>
           </div>
           <div className="box-content">
-            {words.map((w, i) => placed[i] === 'zay' && (
+            {words.map((w, i) => placed[i] === 'target' && (
               <div key={i} className="draggable-word in-zay">{w.w}</div>
             ))}
           </div>
         </div>
 
         <div
-          className={'sound-box box-seen' + (overBox === 'seen' ? ' over' : '')}
-          onDragOver={e => onDragOver(e, 'seen')}
+          className={'sound-box box-seen' + (overBox === 'contrast' ? ' over' : '')}
+          onDragOver={e => onDragOver(e, 'contrast')}
           onDragLeave={onDragLeave}
-          onDrop={e => onDrop(e, 'seen')}
-          onClick={() => onTapBox('seen')}
+          onDrop={e => onDrop(e, 'contrast')}
+          onClick={() => onTapBox('contrast')}
         >
           <div className="header">
-            <div className="big-letter">س</div>
-            <div className="sound-hint">صوت الثعبان <span className="onomato">سسسس</span> 🐍</div>
+            <div className="big-letter">{soundChallenge.contrastLetter}</div>
+            <div className="sound-hint">صوت الحرف <span className="onomato">{soundChallenge.contrastLetter}</span></div>
           </div>
           <div className="box-content">
-            {words.map((w, i) => placed[i] === 'seen' && (
+            {words.map((w, i) => placed[i] === 'contrast' && (
               <div key={i} className="draggable-word in-seen">{w.w}</div>
             ))}
           </div>
