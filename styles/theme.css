@@ -1,0 +1,180 @@
+/* Warm-paper theme — dyslexia-friendly Arabic */
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=Cairo:wght@400;600;700;900&family=Amiri:wght@400;700&display=swap');
+
+:root {
+  --paper: #f5ecd9;
+  --paper-2: #ede0c4;
+  --paper-3: #e6d4ad;
+  --ink: #3a2c1a;
+  --ink-2: #5a4632;
+  --ink-3: #8a7558;
+  --line: #c9b591;
+  --accent-coral: #d97757;
+  --accent-sky: #6ea8c9;
+  --accent-yellow: #e8b04b;
+  --accent-green: #7ba05b;
+  --accent-mauve: #b07a9c;
+  --success: #4d8a3f;
+  --error: #c45a4d;
+  --shadow: 0 2px 0 rgba(58,44,26,.08), 0 8px 24px rgba(58,44,26,.08);
+  --shadow-pressed: inset 0 2px 4px rgba(58,44,26,.15);
+  --radius: 14px;
+  --radius-lg: 22px;
+  --font-ar: 'Tajawal', 'Cairo', system-ui, sans-serif;
+  --font-display: 'Cairo', 'Tajawal', sans-serif;
+  --font-quran: 'Amiri', serif;
+  --letter-spacing: 0.01em;
+  --line-height: 2.0;
+  --font-size-base: 22px;
+}
+
+* { box-sizing: border-box; }
+
+.app-root {
+  font-family: var(--font-ar);
+  color: var(--ink);
+  background: var(--paper);
+  letter-spacing: var(--letter-spacing);
+  direction: rtl;
+  height: 100%;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.app-root.dyslexic { letter-spacing: 0.06em; }
+.app-root.dyslexic * { word-spacing: 0.18em; }
+
+.paper-bg {
+  background:
+    radial-gradient(circle at 12% 15%, rgba(217,119,87,0.05) 0%, transparent 40%),
+    radial-gradient(circle at 88% 80%, rgba(110,168,201,0.05) 0%, transparent 40%),
+    var(--paper);
+}
+
+.paper-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(58,44,26,0.025) 1px, transparent 1px),
+    radial-gradient(circle at 60% 70%, rgba(58,44,26,0.02) 1px, transparent 1px);
+  background-size: 32px 32px, 24px 24px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.btn {
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 18px;
+  border: 2px solid var(--ink);
+  background: var(--paper-2);
+  color: var(--ink);
+  padding: 12px 22px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform .12s, box-shadow .12s;
+  user-select: none;
+}
+.btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
+.btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+.btn.primary { background: var(--accent-coral); color: #fff8ee; }
+.btn.success { background: var(--success); color: #f5ecd9; }
+.btn.sky { background: var(--accent-sky); color: #f5ecd9; }
+.btn.ghost { background: transparent; box-shadow: none; border-color: var(--ink-3); }
+.btn.ghost:hover { box-shadow: 2px 2px 0 var(--ink-3); }
+
+.card {
+  background: #fbf6e9;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-lg);
+  box-shadow: 4px 4px 0 var(--ink);
+  padding: 22px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--paper-2);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.tatweel { letter-spacing: 0.01em; }
+
+/* Confetti and sparkle */
+@keyframes sparkle {
+  0% { transform: scale(0) rotate(0); opacity: 0; }
+  50% { transform: scale(1) rotate(180deg); opacity: 1; }
+  100% { transform: scale(0) rotate(360deg); opacity: 0; }
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%,60% { transform: translateX(-6px); }
+  40%,80% { transform: translateX(6px); }
+}
+@keyframes pop {
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes confetti-fall {
+  0% { transform: translateY(-20px) rotate(0); opacity: 1; }
+  100% { transform: translateY(300px) rotate(720deg); opacity: 0; }
+}
+@keyframes wiggle {
+  0%,100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(217,119,87,0.5); }
+  70% { box-shadow: 0 0 0 18px rgba(217,119,87,0); }
+  100% { box-shadow: 0 0 0 0 rgba(217,119,87,0); }
+}
+
+.shake { animation: shake .35s; }
+.pop { animation: pop .3s; }
+.wiggle { animation: wiggle 1.6s ease-in-out infinite; }
+.float { animation: float 2.2s ease-in-out infinite; }
+.pulse-ring { animation: pulse-ring 1.6s infinite; }
+
+/* Hand-drawn dashed border */
+.dashed {
+  border: 2.5px dashed var(--ink-3);
+  border-radius: var(--radius);
+}
+
+/* Word/letter helpers */
+.word-pill {
+  display: inline-block;
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  padding: 8px 16px;
+  margin: 4px;
+  font-weight: 700;
+  font-size: 24px;
+  box-shadow: 2px 2px 0 var(--ink);
+  cursor: pointer;
+  user-select: none;
+  transition: transform .12s;
+}
+.word-pill:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink); }
+.word-pill.dragging { opacity: .4; }
+.word-pill.selected { background: var(--accent-yellow); }
+
+/* Letter highlight by similarity group (helps dyslexic readers) */
+.app-root .letter-d { color: var(--accent-coral); }
+.app-root .letter-r { color: var(--accent-sky); }
+.app-root .letter-similar-1 { color: #b85a3f; } /* ت ث */
+.app-root .letter-similar-2 { color: #5a8aa8; } /* ج ح خ */
