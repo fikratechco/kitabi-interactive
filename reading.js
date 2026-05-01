@@ -11,7 +11,7 @@ function tokenize(sentence) {
 // ============================================
 // READING PAGE - Lesson with karaoke highlight
 // Now driven by selectedText from library-data.js
-// Supports both full-text MP3 and word-by-word synthesis
+// Supports full-text MP3 playback (TTS removed — MP3 files to be added)
 // Saves progress to database when reading is complete
 // ============================================
 function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId, user }) {
@@ -40,14 +40,11 @@ function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId,
   const playAll = async () => {
     setReading(true);
     setFinished(false);
-    
-    // Attempt to play full text MP3 first
-    if (audioMgrRef.current && bookId && selectedText?.id) {
+    // Attempt to play full text MP3
+    if (audioMgrRef.current && selectedBook?.id && selectedText?.id) {
       try {
-        const success = await audioMgrRef.current.playText(bookId, selectedText.id);
+        const success = await audioMgrRef.current.playText(selectedBook.id, selectedText.id);
         if (success) {
-          // Full MP3 is playing; just mark as finished after reasonable duration
-          // In Phase 2, could implement actual audio duration detection
           const estimatedDuration = Math.max(30000, text.body.join(' ').length * 50);
           setTimeout(() => {
             setReading(false);
@@ -58,34 +55,11 @@ function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId,
           return;
         }
       } catch (e) {
-        console.warn('MP3 playback failed, falling back to word-by-word:', e);
+        console.warn('MP3 playback failed:', e);
       }
     }
-
-    // Fallback to word-by-word synthesis
-    let s = 0;
-    const playNext = () => {
-      if (s >= sentences.length) {
-        setReading(false);
-        setActiveWord(-1);
-        setActiveSentence(-1);
-        setFinished(true);
-        return;
-      }
-      setActiveSentence(s);
-      const words = sentences[s];
-      let i = 0;
-      const next = () => {
-        if (i >= words.length) { s++; playNext(); return; }
-        setActiveWord(i);
-        const word = words[i].w;
-        if (word && !/^[.،:؟!]+$/.test(word)) speak(word, 0.75);
-        const dur = Math.max(550, word.length * 130);
-        timerRef.current = setTimeout(() => { i++; next(); }, dur);
-      };
-      next();
-    };
-    playNext();
+    // No MP3 available yet — just stop quietly
+    setReading(false);
   };
 
   const stop = () => {
@@ -122,16 +96,16 @@ function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId,
   return (
     <div className="page-card pop-in">
       <div className="section-head">
-        <h2>📖 {selectedBook?.emoji} {text.title}</h2>
+        <h2>📖 {selectedText?.displayIcon || selectedBook?.emoji} {text.title}</h2>
         {text.page && <div className="progress-pill">صفحة {text.page}</div>}
       </div>
 
       <HintBubble>
-        اضغط على زر التشغيل ▶ لتسمع القصة، أو اضغط على أي كلمة لتسمعها وحدها. بعد الانتهاء من القراءة، تظهر لك الألعاب 🎮
+        اقرأ النص بعناية، ثم اضغط على «تخطي إلى الألعاب» للمتابعة 📖
       </HintBubble>
 
       <div className="lesson-image">
-        <span style={{ fontSize: 80 }}>{selectedBook?.emoji || '📖'}</span>
+        <span style={{ fontSize: 80 }}>{selectedText?.displayIcon || selectedBook?.emoji || '📖'}</span>
         <span className="caption">{text.desc || text.title}</span>
       </div>
 
@@ -146,7 +120,7 @@ function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId,
                   <span
                     key={wIdx}
                     className={'word' + (isActive ? ' active' : '') + (isRead ? ' read' : '')}
-                    onClick={() => { if (!/^[.،:؟!]+$/.test(w.w)) speak(w.w, 0.7); }}
+                    onClick={() => {}}
                   >
                     {w.w}{' '}
                   </span>
