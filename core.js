@@ -12,27 +12,16 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 const speak = async (text, rate = 0.85) => {
   try {
     const audioMgr = getAudioManager();
-    
-    // If single character (letter), try MP3 first
+    const stats = typeof audioMgr.getStats === 'function' ? audioMgr.getStats() : { muted: false };
+    if (stats.muted) return null;
+    // Single Arabic letter: attempt MP3 only
     if (text && text.length === 1) {
       const audioPath = getLetterAudioPath(text);
-      if (audioPath) {
-        const success = await audioMgr.playLetter(text);
-        if (success) return;
-      }
+      if (audioPath) await audioMgr.playLetter(text);
     }
-    
-    // Fallback to Web Speech API
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ar-SA';
-    u.rate = rate;
-    u.pitch = 1.05;
-    window.speechSynthesis.speak(u);
-    return u;
-  } catch (e) { 
-    console.warn('speak() error:', e); 
+    // No TTS fallback — MP3 files will be added later
+  } catch (e) {
+    console.warn('speak() error:', e);
   }
 };
 
