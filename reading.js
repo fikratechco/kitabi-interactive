@@ -14,7 +14,7 @@ function tokenize(sentence) {
 // Supports full-text MP3 playback (TTS removed — MP3 files to be added)
 // Saves progress to database when reading is complete
 // ============================================
-function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId, user, gamesEnabled = true }) {
+function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId, user, gamesEnabled = true, progressChildId }) {
   // Fallback to demo content if no text selected
   const text = selectedText || {
     title: 'الغزالة الجميلة',
@@ -78,12 +78,13 @@ function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId,
 
   // Save progress when text reading is finished
   useEffect(() => {
-    if (finished && user?.id && selectedText?.id && selectedBook?.id) {
+    const childId = progressChildId || user?.id;
+    if (finished && childId && selectedText?.id && selectedBook?.id) {
       const saveProgress = async () => {
         try {
           const dataService = typeof window.DataService === 'function' ? new window.DataService() : null;
           if (dataService) {
-            await dataService.recordTextRead(user.id, selectedBook.id, selectedText.id, 'read');
+            await dataService.recordTextRead(childId, selectedBook.id, selectedText.id, 'read');
           }
         } catch (err) {
           console.warn('Error saving reading progress:', err);

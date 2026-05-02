@@ -78,6 +78,65 @@ function inferWordIcon(word) {
   return '📘';
 }
 
+async function bootstrapUserSession(currentUser, setUser, setChildren, setProgress, setView, setActiveChildId) {
+  if (!currentUser) return;
+
+  const auth = new window.AuthService();
+  const dataService = new window.DataService();
+  const userProfile = await auth.getUserProfile(currentUser.id);
+
+  const nextUser = {
+    id: currentUser.id,
+    email: currentUser.email,
+    name: userProfile?.name || 'User',
+    role: userProfile?.role || 'child',
+  };
+
+  setUser(nextUser);
+
+  if (userProfile?.role === 'parent') {
+    setActiveChildId(null);
+    const childrenData = await dataService.getChildren(currentUser.id);
+    if (childrenData && childrenData.length > 0) {
+      setChildren(childrenData.map(c => ({
+        ...c,
+        progress: {
+          stars: c.progress?.stars || 0,
+          texts: c.progress?.texts || {},
+          gamesPlayed: c.progress?.gamesPlayed || 0,
+          minutesSpent: c.progress?.minutesSpent || 0,
+        },
+      })));
+    }
+    setView('parent-home');
+    return;
+  }
+
+  const linkedChildren = await dataService.getChildren(currentUser.id);
+  let childRecord = linkedChildren && linkedChildren.length > 0 ? linkedChildren[0] : null;
+
+  if (!childRecord) {
+    const created = await dataService.createChild(currentUser.id, userProfile?.name || 'طفل', 7, '🧒');
+    childRecord = created && created[0] ? created[0] : null;
+  }
+
+  if (childRecord?.id) {
+    setActiveChildId(childRecord.id);
+    const childProgress = await dataService.getProgress(childRecord.id);
+    if (childProgress) {
+      setProgress({
+        stars: childProgress.stars || 0,
+        texts: childProgress.texts || {},
+        gamesPlayed: childProgress.gamesPlayed || 0,
+        streak: childProgress.streak || 1,
+        completedGames: {},
+      });
+    }
+  }
+
+  setView('child-home');
+}
+
 
 // Predefined manipulation examples keyed by target letter.
 const LETTER_MANIP_TABLE = {
@@ -209,6 +268,7 @@ function App() {
   const [selectedChild, setSelectedChild] = useState(null);
   const [currentBook, setCurrentBook] = useState(null);
   const [currentText, setCurrentText] = useState(null);
+  const [activeChildId, setActiveChildId] = useState(null);
   const [progress, setProgress] = useState({
     stars: 0, texts: {}, gamesPlayed: 0, streak: 1, completedGames: {},
   });
@@ -237,45 +297,14 @@ function App() {
           
           if (currentUser) {
             // User already logged in — load their data
-            const userProfile = await auth.getUserProfile(currentUser.id);
-            setUser({
-              id: currentUser.id,
-              email: currentUser.email,
-              name: userProfile?.name || 'User',
-              role: userProfile?.role || 'child',
-            });
-            
-            // Load children data if parent
-            if (userProfile?.role === 'parent') {
-              const dataService = new window.DataService();
-              const childrenData = await dataService.getChildren(currentUser.id);
-              if (childrenData.length > 0) {
-                setChildren(childrenData.map(c => ({
-                  ...c,
-                  progress: {
-                    stars: c.progress?.stars || 0,
-                    texts: c.progress?.texts || {},
-                    gamesPlayed: c.progress?.gamesPlayed || 0,
-                    minutesSpent: c.progress?.minutesSpent || 0,
-                  },
-                })));
-              }
-              setView('parent-home');
-            } else {
-              // Child logged in — load their progress
-              const dataService = new window.DataService();
-              const childProgress = await dataService.getProgress(currentUser.id);
-              if (childProgress) {
-                setProgress({
-                  stars: childProgress.stars || 0,
-                  texts: childProgress.texts || {},
-                  gamesPlayed: childProgress.gamesPlayed || 0,
-                  streak: childProgress.streak || 1,
-                  completedGames: {},
-                });
-              }
-              setView('child-home');
-            }
+            await bootstrapUserSession(
+              currentUser,
+              setUser,
+              setChildren,
+              setProgress,
+              setView,
+              setActiveChildId,
+            );
           } else {
             setView('landing');
           }
@@ -296,8 +325,20 @@ function App() {
 
   // ---- Auth flow ----
   const handleAuth = async (data) => {
-    setUser(data);
-    setView(data.role === 'parent' ? 'parent-home' : 'child-home');
+    if (!data?.user) {
+      setUser(data);
+      setView(data.role === 'parent' ? 'parent-home' : 'child-home');
+      return;
+    }
+
+    await bootstrapUserSession(
+      data.user,
+      setUser,
+      setChildren,
+      setProgress,
+      setView,
+      setActiveChildId,
+    );
   };
   const logout = async () => {
     if (useSupabase) {
@@ -309,6 +350,7 @@ function App() {
       }
     }
     setUser(null);
+    setActiveChildId(null);
     setView('landing');
   };
 
@@ -329,10 +371,11 @@ function App() {
     setProgress(newProgress);
     
     // Save to database if user is logged in
-    if (useSupabase && user?.id) {
+    const progressChildId = activeChildId || user?.id;
+    if (useSupabase && progressChildId) {
       try {
         const dataService = new window.DataService();
-        await dataService.recordTextRead(user.id, currentBook?.id, currentText?.id, nextStatus);
+        await dataService.recordTextRead(progressChildId, currentBook?.id, currentText?.id, nextStatus);
       } catch (err) {
         console.error('Error saving reading progress:', err);
       }
@@ -350,10 +393,11 @@ function App() {
     setProgress(newProgress);
     
     // Save to database if user is logged in
-    if (useSupabase && user?.id) {
+    const progressChildId = activeChildId || user?.id;
+    if (useSupabase && progressChildId) {
       try {
         const dataService = new window.DataService();
-        await dataService.addStar(user.id);
+        await dataService.addStar(progressChildId);
       } catch (err) {
         console.error('Error saving game completion:', err);
       }
@@ -368,14 +412,15 @@ function App() {
     setProgress(newProgress);
     
     // Save to database if user is logged in
-    if (useSupabase && user?.id) {
+    const progressChildId = activeChildId || user?.id;
+    if (useSupabase && progressChildId) {
       try {
         const dataService = new window.DataService();
         // Record text as complete and add bonus stars
-        await dataService.recordTextRead(user.id, currentBook?.id, currentText?.id, 'done');
-        await dataService.addStar(user.id);
-        await dataService.addStar(user.id);
-        await dataService.addStar(user.id);
+        await dataService.recordTextRead(progressChildId, currentBook?.id, currentText?.id, 'done');
+        await dataService.addStar(progressChildId);
+        await dataService.addStar(progressChildId);
+        await dataService.addStar(progressChildId);
       } catch (err) {
         console.error('Error saving game completion:', err);
       }
@@ -482,6 +527,7 @@ function App() {
           selectedBook={currentBook}
           user={user}
           gamesEnabled={currentText?.gameAvailable !== false}
+          progressChildId={activeChildId || user?.id}
         />
       </div>
     );
