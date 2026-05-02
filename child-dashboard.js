@@ -26,6 +26,7 @@ function ChildDashboard({ user, progress, onOpenBook, onDiagnose, onIQ, onLogout
   const totalTexts = LIBRARY.reduce((acc, b) => acc + b.texts.length, 0);
   const completedTexts = Object.values(progress.texts || {}).filter(t => t === 'done').length;
   const overallPct = totalTexts > 0 ? Math.round((completedTexts / totalTexts) * 100) : 0;
+  const availableBooks = LIBRARY.filter(b => !b.locked && !b.comingSoon).length;
 
   return (
     <div className="dashboard">
@@ -104,7 +105,7 @@ function ChildDashboard({ user, progress, onOpenBook, onDiagnose, onIQ, onLogout
       <div className="library-section">
         <div className="section-head">
           <h2>📚 مكتبتي</h2>
-          <div className="progress-pill">{LIBRARY.filter(b => !b.locked).length} كتاب متاح</div>
+          <div className="progress-pill">{availableBooks} كتاب متاح</div>
         </div>
         <div className="book-grid">
           {LIBRARY.map(book => {
@@ -112,17 +113,18 @@ function ChildDashboard({ user, progress, onOpenBook, onDiagnose, onIQ, onLogout
             const bookProgress = book.texts.length > 0
               ? Math.round((book.texts.filter(t => progress.texts?.[t.id] === 'done').length / book.texts.length) * 100)
               : 0;
+            const gameCount = book.texts.filter(t => t.gameAvailable).length;
             return (
               <div
                 key={book.id}
                 className="book-card"
-                onClick={() => !book.locked && onOpenBook(book)}
-                style={{ opacity: book.locked ? 0.55 : 1, cursor: book.locked ? 'not-allowed' : 'pointer' }}
+                onClick={() => !book.locked && !book.comingSoon && onOpenBook(book)}
+                style={{ opacity: book.locked || book.comingSoon ? 0.55 : 1, cursor: book.locked || book.comingSoon ? 'not-allowed' : 'pointer' }}
               >
                 <div className="book-cover">
                   <span style={{ fontSize: 80 }}>{book.emoji}</span>
-                  <span className={'book-status' + (book.locked ? ' locked' : bookCompleted ? ' completed' : '')}>
-                    {book.locked ? '🔒' : bookCompleted ? '✓ مكتمل' : book.level}
+                  <span className={'book-status' + (book.locked || book.comingSoon ? ' locked' : bookCompleted ? ' completed' : '')}>
+                    {book.comingSoon ? 'قريباً' : book.locked ? '🔒' : bookCompleted ? '✓ مكتمل' : book.level}
                   </span>
                 </div>
                 <div className="book-info">
@@ -130,8 +132,13 @@ function ChildDashboard({ user, progress, onOpenBook, onDiagnose, onIQ, onLogout
                   <div className="book-meta">
                     <span>📄 {book.texts.length} نص</span>
                     <span>•</span>
-                    <span>{bookProgress}%</span>
+                    <span>{book.comingSoon ? 'قريباً' : `${bookProgress}%`}</span>
                   </div>
+                  {!book.comingSoon && gameCount > 0 && (
+                    <div className="book-meta book-meta-secondary">
+                      <span>🎮 {gameCount} نص بألعاب</span>
+                    </div>
+                  )}
                   <div className="book-progress">
                     <div className="book-progress-fill" style={{ width: bookProgress + '%' }}></div>
                   </div>
@@ -181,6 +188,9 @@ function BookDetail({ book, progress, onPickText, onBack }) {
                 <p>{t.desc}</p>
                 <div className="tags">
                   {t.tags.map((tag, j) => <span key={j} className="tag">{tag}</span>)}
+                  <span className="tag" style={{ background: t.gameAvailable ? 'var(--accent-green-soft)' : 'var(--bg-soft)' }}>
+                    {t.gameAvailable ? '🎮 ألعاب متاحة' : 'قراءة فقط'}
+                  </span>
                   {readDone && !completed && <span className="tag" style={{ background: 'var(--accent-yellow-soft)' }}>قرأت — العب الآن</span>}
                 </div>
               </div>

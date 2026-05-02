@@ -313,26 +313,32 @@ function App() {
   };
 
   // ---- Child book flow ----
-  const openBook = (book) => { setCurrentBook(book); setView('book'); };
+  const openBook = (book) => {
+    if (!book || book.comingSoon) return;
+    setCurrentBook(book);
+    setView('book');
+  };
   const pickText = (text) => {
     setCurrentText(text);
     setView('reading');
   };
   const onReadDone = async () => {
-    const newProgress = { ...progress, texts: { ...progress.texts, [currentText.id]: 'read' } };
+    const hasGames = currentText?.gameAvailable !== false;
+    const nextStatus = hasGames ? 'read' : 'done';
+    const newProgress = { ...progress, texts: { ...progress.texts, [currentText.id]: nextStatus } };
     setProgress(newProgress);
     
     // Save to database if user is logged in
     if (useSupabase && user?.id) {
       try {
         const dataService = new window.DataService();
-        await dataService.recordTextRead(user.id, currentBook?.id, currentText?.id, 'read');
+        await dataService.recordTextRead(user.id, currentBook?.id, currentText?.id, nextStatus);
       } catch (err) {
         console.error('Error saving reading progress:', err);
       }
     }
     
-    setView('games');
+    setView(hasGames ? 'games' : 'book');
   };
   const onGameComplete = async (gameId) => {
     const newProgress = {
@@ -469,7 +475,14 @@ function App() {
         <div style={{ marginBottom: 12 }}>
           <button className="btn-secondary" onClick={() => setView('book')}>← {currentBook?.title}</button>
         </div>
-        <ReadingPage fontSize={fontSize} onContinue={onReadDone} selectedText={currentText} selectedBook={currentBook} user={user} />
+        <ReadingPage
+          fontSize={fontSize}
+          onContinue={onReadDone}
+          selectedText={currentText}
+          selectedBook={currentBook}
+          user={user}
+          gamesEnabled={currentText?.gameAvailable !== false}
+        />
       </div>
     );
   }

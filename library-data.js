@@ -2,7 +2,7 @@
 // ============================================
 // LIBRARY DATA — كتاب اللغة العربية السنة 2 ابتدائي
 // ============================================
-window.LIBRARY = [
+const SOURCE_LIBRARY = [
   {
     id: 'school', title: 'في المدرسة', emoji: '🏫', level: 'مبتدئ',
     texts: [
@@ -213,3 +213,33 @@ window.LIBRARY = [
     ],
   },
 ];
+
+let sourceTextIndex = 0;
+const MAIN_BOOK = {
+  id: 'arabic-grade-2',
+  title: 'كتاب اللغة العربية السنة الثانية ابتدائي',
+  emoji: '📘',
+  level: 'الكتاب الأساسي',
+  comingSoon: false,
+  locked: false,
+  texts: SOURCE_LIBRARY.flatMap(book => book.texts.map(text => {
+    const clonedText = {
+      ...text,
+      body: [...text.body],
+      tags: [...(text.tags || [])],
+      gameAvailable: sourceTextIndex < 14,
+    };
+    sourceTextIndex += 1;
+    return clonedText;
+  })),
+};
+
+const COMING_SOON_BOOKS = [
+  { id: 'coming-soon-1', title: 'قريباً: الكتاب الثاني', emoji: '✨', level: 'قريباً', comingSoon: true, locked: true, texts: [] },
+  { id: 'coming-soon-2', title: 'قريباً: الكتاب الثالث', emoji: '✨', level: 'قريباً', comingSoon: true, locked: true, texts: [] },
+  { id: 'coming-soon-3', title: 'قريباً: الكتاب الرابع', emoji: '✨', level: 'قريباً', comingSoon: true, locked: true, texts: [] },
+];
+
+window.MAIN_BOOK = MAIN_BOOK;
+window.GAME_ENABLED_TEXT_IDS = new Set(MAIN_BOOK.texts.filter(t => t.gameAvailable).map(t => t.id));
+window.LIBRARY = [MAIN_BOOK, ...COMING_SOON_BOOKS];

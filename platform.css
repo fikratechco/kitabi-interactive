@@ -394,6 +394,15 @@
   box-shadow: var(--shadow-md);
 }
 
+.book-card.coming-soon {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.book-card.coming-soon .book-cover {
+  filter: saturate(0.75);
+}
+
 .book-cover {
   aspect-ratio: 3/4;
   display: grid;
@@ -422,6 +431,10 @@
 }
 .book-info .book-title { font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
 .book-info .book-meta { font-size: 12px; color: var(--ink-soft); display: flex; gap: 8px; }
+.book-info .book-meta-secondary {
+  margin-top: 4px;
+  color: var(--ink-muted);
+}
 .book-info .book-progress {
   margin-top: 8px;
   height: 6px;
@@ -475,6 +488,121 @@
   padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
 }
 .text-item .arrow { font-size: 20px; color: var(--ink-muted); }
+
+@media (max-width: 768px) {
+  .book-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .book-cover {
+    font-size: 62px;
+  }
+
+  .book-info {
+    padding: 12px 14px;
+  }
+
+  .book-info .book-title {
+    font-size: 15px;
+  }
+
+  .text-item {
+    padding: 14px 16px;
+  }
+
+  .text-item .num {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .text-item .text-info h4 {
+    font-size: 15px;
+  }
+
+  .text-item .text-info p {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .library-section .section-head {
+    gap: 8px;
+  }
+
+  .book-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .book-cover {
+    font-size: 52px;
+  }
+
+  .book-cover .book-status {
+    font-size: 11px;
+    padding: 3px 8px;
+    top: 8px;
+    right: 8px;
+  }
+
+  .book-info .book-title {
+    font-size: 14px;
+  }
+
+  .book-info .book-meta {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+
+  .text-list {
+    gap: 10px;
+  }
+
+  .text-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .text-item .num {
+    width: 38px;
+    height: 38px;
+    font-size: 15px;
+  }
+
+  .text-item .text-info h4 {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .text-item .text-info p {
+    font-size: 11px;
+  }
+
+  .text-item .text-info .tags {
+    flex-wrap: wrap;
+  }
+
+  .text-item .arrow {
+    align-self: flex-end;
+  }
+
+  .games-unlock-banner {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .games-unlock-banner h3 {
+    font-size: 18px;
+  }
+
+  .games-unlock-banner p {
+    font-size: 13px;
+  }
+}
 
 /* "Go to games" CTA after reading */
 .games-unlock-banner {

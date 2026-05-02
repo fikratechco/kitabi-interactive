@@ -14,7 +14,7 @@ function tokenize(sentence) {
 // Supports full-text MP3 playback (TTS removed — MP3 files to be added)
 // Saves progress to database when reading is complete
 // ============================================
-function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId, user }) {
+function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId, user, gamesEnabled = true }) {
   // Fallback to demo content if no text selected
   const text = selectedText || {
     title: 'الغزالة الجميلة',
@@ -135,9 +135,11 @@ function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId,
         <div className="games-unlock-banner">
           <div>
             <h3>🎉 أحسنت! أنهيت القراءة</h3>
-            <p>الآن حان وقت الألعاب لتثبت ما تعلمته!</p>
+            <p>{gamesEnabled ? 'الآن حان وقت الألعاب لتثبت ما تعلمته!' : 'هذا النص قراءة فقط، يمكنك العودة إلى بقية النصوص.'}</p>
           </div>
-          <button className="btn-primary" onClick={onContinue}>هيا نلعب! 🎮 ←</button>
+          <button className="btn-primary" onClick={onContinue}>
+            {gamesEnabled ? 'هيا نلعب! 🎮 ←' : 'عودة إلى النصوص ←'}
+          </button>
         </div>
       )}
 
@@ -147,7 +149,11 @@ function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, bookId,
         ) : (
           <button className="btn-secondary" onClick={stop}>⏸ إيقاف</button>
         )}
-        <button className="btn-success" onClick={onContinue}>تخطي إلى الألعاب 🎮</button>
+        {gamesEnabled ? (
+          <button className="btn-success" onClick={onContinue}>تخطي إلى الألعاب 🎮</button>
+        ) : (
+          <button className="btn-success" onClick={onContinue}>العودة إلى النصوص ←</button>
+        )}
       </div>
     </div>
   );
