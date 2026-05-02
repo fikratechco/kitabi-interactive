@@ -81,8 +81,6 @@ function Landing({ onGetStarted, onLogin }) {
   );
 }
 
-
-
 // ============================================
 // AUTH (Login + Signup with role)
 // ============================================
@@ -99,24 +97,30 @@ function Auth({ mode, onAuth, onSwitchMode, onBack }) {
     setLoading(true);
     try {
       const auth = typeof window.AuthService === 'function' ? new window.AuthService() : null;
-      if (!auth) throw new Error('خدمة التحقق غير متاحة حالياً.');
+      
+      if (!auth) {
+        throw new Error('Authentication service not available');
+      }
 
-      let result;
+      let userData;
       if (mode === 'signup') {
-        result = await auth.signup(email, pw, name || (role === 'child' ? 'بطل صغير' : 'وليّ أمر'), role);
+        // Create new account
+        userData = await auth.signup(email, pw, name || (role === 'child' ? 'بطل صغير' : 'وليّ أمر'), role);
       } else {
-        result = await auth.login(email, pw);
+        // Login to existing account
+        userData = await auth.login(email, pw);
       }
 
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-
-      if (result.user) {
-        onAuth({ user: result.user });
+      if (userData) {
+        onAuth({
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          role: userData.role,
+        });
       }
     } catch (err) {
+      console.error('Auth error:', err);
       setError(err.message || 'خطأ في التحقق. يرجى المحاولة مجدداً.');
     } finally {
       setLoading(false);
@@ -149,12 +153,12 @@ function Auth({ mode, onAuth, onSwitchMode, onBack }) {
 
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 10 }}>أنا...</div>
         <div className="role-picker">
-          <div className={'role-option' + (role === 'child' ? ' active' : '')} onClick={() => !loading && setRole('child')}>
+          <div className={'role-option' + (role === 'child' ? ' active' : '')} onClick={() => setRole('child')} style={{ pointerEvents: loading ? 'none' : 'auto' }}>
             <div className="role-icon">🧒</div>
             <div className="role-label">طفل</div>
             <div className="role-desc">أريد التعلم واللعب</div>
           </div>
-          <div className={'role-option' + (role === 'parent' ? ' active' : '')} onClick={() => !loading && setRole('parent')}>
+          <div className={'role-option' + (role === 'parent' ? ' active' : '')} onClick={() => setRole('parent')} style={{ pointerEvents: loading ? 'none' : 'auto' }}>
             <div className="role-icon">👨‍👩‍👧</div>
             <div className="role-label">وليّ أمر</div>
             <div className="role-desc">أتابع تقدم أطفالي</div>
@@ -184,19 +188,11 @@ function Auth({ mode, onAuth, onSwitchMode, onBack }) {
           />
         </div>
         <div className="form-field">
-          <label>
-            كلمة المرور
-            {mode === 'signup' && (
-              <span style={{ fontSize: 11, color: 'var(--ink-muted)', marginInlineStart: 8 }}>
-                (6 أحرف على الأقل)
-              </span>
-            )}
-          </label>
+          <label>كلمة المرور</label>
           <input
             type="password"
             value={pw}
-            onChange={e => { setPw(e.target.value); setError(''); }}
-            onKeyDown={e => e.key === 'Enter' && submit()}
+            onChange={e => setPw(e.target.value)}
             placeholder="••••••••"
             disabled={loading}
           />
@@ -206,12 +202,19 @@ function Auth({ mode, onAuth, onSwitchMode, onBack }) {
           className="btn-primary"
           style={{ width: '100%', justifyContent: 'center', marginTop: 8, opacity: loading ? 0.6 : 1 }}
           onClick={submit}
-          disableكلمة المرور</label>
-          <input
-            type="password"
-            valuediv>
+          disabled={loading}
+        >
+          {loading ? '⏳ جاري المعالجة...' : (mode === 'signup' ? 'إنشاء الحساب' : 'دخول')}
+        </button>
+
         <div className="auth-toggle">
-          <a onClick={() => !loading && onBack()} style={{ opacity: loading ? 0.5 : 1, cursor: loading ? 'default' : 'pointer' }}>
+          {mode === 'signup' ? 'لديك حساب؟' : 'ليس لديك حساب؟'}
+          <a onClick={() => !loading && onSwitchMode()} style={{ opacity: loading ? 0.5 : 1, pointerEvents: loading ? 'none' : 'auto' }}>
+            {' '}{mode === 'signup' ? 'سجّل الدخول' : 'أنشئ حساب جديد'}
+          </a>
+        </div>
+        <div className="auth-toggle">
+          <a onClick={() => !loading && onBack()} style={{ opacity: loading ? 0.5 : 1, pointerEvents: loading ? 'none' : 'auto' }}>
             ← رجوع للصفحة الرئيسية
           </a>
         </div>
