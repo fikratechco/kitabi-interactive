@@ -82,13 +82,64 @@ class AudioManager {
   }
 
   /**
-   * Play arbitrary word or phrase (check if MP3 exists, else fallback to Web Speech)
-   * @param {string} text - Text to play
+   * Play arbitrary word or phrase — MP3-only, silent if not found.
+   * Word MP3s live at /audio/words/<encoded>.mp3 when provided.
+   * @param {string} text - Word to play
    */
   async playWord(text) {
-    // Try to find word in texts first (optional expansion)
-    // For now, just attempt Web Speech fallback
-    this.playWithFallback(text);
+    if (!text) return false;
+    const slug = encodeURIComponent(text.trim());
+    const path = (window.AUDIO_CONFIG?.baseUrl || '/audio/') + 'words/' + slug + '.mp3';
+    const blob = await this.preloadAudio(path).catch(() => null);
+    if (blob) return this.playAudioFile(path, text);
+    return false; // silent — MP3 not provided yet
+  }
+
+  /**
+   * Play a text passage and emit progress events via a callbacks object.
+   * @param {string} bookId
+   * @param {string} textId
+   * @param {{ onProgress, onEnded, onError }} callbacks
+   * @returns {Promise<boolean>} true if playback started
+   */
+  async playTextWithProgress(bookId, textId, { onProgress, onEnded, onError } = {}) {
+    const path = typeof getTextAudioPath === 'function' ? getTextAudioPath(bookId, textId) : null;
+    if (!path) { onError && onError('no-file'); return false; }
+
+    this.stop();
+    let blob = this.audioCache.get(path);
+    if (!blob) blob = await this.preloadAudio(path);
+    if (!blob) { onError && onError('load-failed'); return false; }
+
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.volume = this.muted ? 0 : this.volume;
+
+    if (onProgress) {
+      audio.addEventListener('timeupdate', () => {
+        if (audio.duration) onProgress(audio.currentTime / audio.duration, audio.currentTime, audio.duration);
+      });
+    }
+    audio.addEventListener('ended', () => {
+      this.activePlaying = this.activePlaying.filter(a => a !== audio);
+      URL.revokeObjectURL(url);
+      onEnded && onEnded();
+    });
+    audio.addEventListener('error', () => {
+      this.activePlaying = this.activePlaying.filter(a => a !== audio);
+      URL.revokeObjectURL(url);
+      onError && onError('playback-error');
+    });
+
+    this.activePlaying.push(audio);
+    this.currentAudio = audio;
+    try {
+      await audio.play();
+      return true;
+    } catch (e) {
+      onError && onError('play-rejected');
+      return false;
+    }
   }
 
   /**
@@ -145,32 +196,6 @@ class AudioManager {
   }
 
   /**
-   * Play with Web Speech fallback (for testing/graceful degradation)
-   * @param {string} text - Text to speak
-   * @param {number} rate - Speech rate (0.5 - 2.0)
-   */
-  playWithFallback(text, rate = 0.85) {
-    if (!window.speechSynthesis) {
-      console.warn('Web Speech API not available');
-      return false;
-    }
-
-    try {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'ar-SA';
-      u.rate = rate;
-      u.pitch = 1.05;
-      u.volume = this.muted ? 0 : this.volume;
-      window.speechSynthesis.speak(u);
-      return true;
-    } catch (e) {
-      console.error('Web Speech error:', e);
-      return false;
-    }
-  }
-
-  /**
    * Stop all current audio playback
    */
   stop() {
@@ -178,12 +203,11 @@ class AudioManager {
       this.currentAudio.pause();
       this.currentAudio.currentTime = 0;
     }
-    window.speechSynthesis?.cancel();
     this.activePlaying.forEach(audio => {
-      audio.pause();
-      audio.currentTime = 0;
+      try { audio.pause(); audio.currentTime = 0; } catch (_) {}
     });
     this.activePlaying = [];
+    this.currentAudio = null;
   }
 
   /**

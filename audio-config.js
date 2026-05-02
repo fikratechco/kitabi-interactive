@@ -64,7 +64,7 @@ window.AUDIO_CONFIG = {
   baseUrl: '/audio/',           // Base URL for all audio files
   letterUrl: '/audio/letters/', // Letter pronunciation files
   textUrl: '/audio/texts/',     // Text passage files
-  fallbackToWebSpeech: true,    // If MP3 missing, use Web Speech API
+  fallbackToWebSpeech: false,   // MP3-only — no robotic TTS fallback
   preloadLetters: true,          // Preload all letter sounds on app startup
   maxConcurrentAudio: 1,        // Only play one audio at a time (0 = unlimited)
   volume: 1.0,                   // Default volume (0.0 - 1.0)

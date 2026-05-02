@@ -4,9 +4,32 @@
 // AUTHENTICATION SERVICE
 // ============================================
 
+const AUTH_ERRORS_AR = {
+  'Invalid login credentials': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+  'Email not confirmed': 'يرجى تأكيد بريدك الإلكتروني أولاً.',
+  'User already registered': 'هذا البريد الإلكتروني مسجَّل بالفعل.',
+  'Password should be at least 6 characters': 'كلمة المرور يجب أن تكون 6 أحرف على الأقل.',
+  'Unable to validate email address: invalid format': 'صيغة البريد الإلكتروني غير صحيحة.',
+  'signup is disabled': 'التسجيل متوقف مؤقتاً. حاول لاحقاً.',
+  'Email rate limit exceeded': 'طلبات كثيرة جداً. انتظر قليلاً ثم حاول مجدداً.',
+  'For security purposes, you can only request this after': 'لأسباب أمنية، انتظر قليلاً قبل المحاولة مجدداً.',
+  'network': 'خطأ في الاتصال بالإنترنت. تحقق من اتصالك وحاول مجدداً.',
+};
+
+function toArabicError(message) {
+  if (!message) return 'حدث خطأ غير متوقع. حاول مجدداً.';
+  for (const [en, ar] of Object.entries(AUTH_ERRORS_AR)) {
+    if (message.toLowerCase().includes(en.toLowerCase())) return ar;
+  }
+  if (message.toLowerCase().includes('network') || message.toLowerCase().includes('fetch')) {
+    return AUTH_ERRORS_AR['network'];
+  }
+  return 'حدث خطأ: ' + message;
+}
+
 class AuthService {
   constructor(supabaseClient) {
-    this.supabase = supabaseClient;
+    this.supabase = supabaseClient || window.supabaseClient;
   }
 
   // Sign up new user
@@ -41,7 +64,7 @@ class AuthService {
 
       return { user: data.user, error: null };
     } catch (error) {
-      return { user: null, error: error.message };
+      return { user: null, error: toArabicError(error.message) };
     }
   }
 
@@ -56,7 +79,7 @@ class AuthService {
       if (error) throw error;
       return { user: data.user, error: null };
     } catch (error) {
-      return { user: null, error: error.message };
+      return { user: null, error: toArabicError(error.message) };
     }
   }
 
@@ -96,6 +119,19 @@ class AuthService {
     } catch (error) {
       console.error('Error fetching profile:', error);
       return null;
+    }
+  }
+
+  // Send password reset email (Supabase magic link)
+  async resetPassword(email) {
+    try {
+      const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/?reset=1',
+      });
+      if (error) throw error;
+      return { error: null };
+    } catch (error) {
+      return { error: toArabicError(error.message) };
     }
   }
 

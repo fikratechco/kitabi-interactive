@@ -5,9 +5,11 @@ const { useState, useEffect } = React;
 // PARENT DASHBOARD
 // ============================================
 function ParentDashboard({ user, children, setChildren, onSelectChild, onAddChild, onDiagnose, onLogout, useSupabase }) {
+  const [childrenLoading, setChildrenLoading] = useState(false);
+
   useEffect(() => {
-    // Load children from database on mount if not already loaded
     if (useSupabase && user?.id && children.length === 0) {
+      setChildrenLoading(true);
       const loadChildren = async () => {
         try {
           const dataService = typeof window.DataService === 'function' ? new window.DataService() : null;
@@ -26,7 +28,9 @@ function ParentDashboard({ user, children, setChildren, onSelectChild, onAddChil
             }
           }
         } catch (err) {
-          console.warn('Error loading children:', err);
+          typeof window.showToast === 'function' && window.showToast('تعذر تحميل بيانات الأطفال. حاول إعادة التحديث.', 'error');
+        } finally {
+          setChildrenLoading(false);
         }
       };
       loadChildren();
@@ -99,7 +103,9 @@ function ParentDashboard({ user, children, setChildren, onSelectChild, onAddChil
           <h2>👨‍👩‍👧 أطفالي</h2>
         </div>
         <div className="parent-children-grid">
-          {children.map(c => {
+          {childrenLoading
+            ? Array.from({ length: 2 }).map((_, i) => <ChildCardSkeleton key={i} />)
+            : children.map(c => {
             const completedTexts = Object.values(c.progress?.texts || {}).filter(t => t === 'done').length;
             const stars = c.progress?.stars || 0;
             return (
@@ -138,7 +144,7 @@ function ParentDashboard({ user, children, setChildren, onSelectChild, onAddChil
 // ============================================
 function ChildReport({ child, onBack, onDiagnose }) {
   const completedTexts = Object.values(child.progress?.texts || {}).filter(t => t === 'done').length;
-  const totalTexts = LIBRARY.reduce((a, b) => a + b.texts.length, 0);
+  const totalTexts = (window.LIBRARY || []).reduce((a, b) => a + b.texts.length, 0);
   const pct = totalTexts > 0 ? Math.round((completedTexts / totalTexts) * 100) : 0;
 
   // Skill breakdown (mock data)

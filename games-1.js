@@ -25,9 +25,15 @@ function GameTrain({ onComplete, gameContext }) {
   };
 
   const check = () => {
-    if (+count === sentence.length) {
+    const n = parseInt(count, 10);
+    if (!count || isNaN(n) || n < 1 || n > 20) {
+      setStatus('wrong');
+      playError();
+      setTimeout(() => setStatus(null), 800);
+      return;
+    }
+    if (n === sentence.length) {
       setStatus('correct');
-      // Sequence: word + clap for each
       sentence.forEach((w, i) => {
         setTimeout(() => { speak(w, 0.7); }, i * 1200);
         setTimeout(() => { playClap(); }, i * 1200 + 700);
@@ -70,7 +76,9 @@ function GameTrain({ onComplete, gameContext }) {
           className={'count-input' + (status ? ' ' + status : '')}
           value={count}
           onChange={e => setCount(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && check()}
           min="1" max="20"
+          placeholder="؟"
         />
         <button className="btn-primary" onClick={check}>تحقق</button>
       </div>
@@ -103,6 +111,7 @@ function GameDrum({ onComplete, gameContext }) {
   }, [idx]);
 
   const tap = () => {
+    if (taps >= cur.syllables.length) return;
     setDrumActive(true);
     playDrum();
     const id = Date.now();
@@ -112,9 +121,7 @@ function GameDrum({ onComplete, gameContext }) {
     const newTaps = taps + 1;
     setTaps(newTaps);
     if (newTaps === cur.syllables.length) {
-      setTimeout(() => {
-        setReward(true);
-      }, 600);
+      setTimeout(() => setReward(true), 600);
     }
   };
 

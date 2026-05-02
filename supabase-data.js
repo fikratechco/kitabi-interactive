@@ -6,7 +6,7 @@
 
 class DataService {
   constructor(supabaseClient) {
-    this.supabase = supabaseClient;
+    this.supabase = supabaseClient || window.supabaseClient;
   }
 
   // ===== CHILDREN =====

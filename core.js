@@ -10,18 +10,17 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
  * @param {number} rate - Speech rate for Web Speech fallback (0.5-2.0)
  */
 const speak = async (text, rate = 0.85) => {
+  if (!text) return;
   try {
     const audioMgr = getAudioManager();
-    const stats = typeof audioMgr.getStats === 'function' ? audioMgr.getStats() : { muted: false };
-    if (stats.muted) return null;
-    // Single Arabic letter: attempt MP3 only
-    if (text && text.length === 1) {
-      const audioPath = getLetterAudioPath(text);
-      if (audioPath) await audioMgr.playLetter(text);
+    if (audioMgr.muted) return;
+    if (text.length === 1) {
+      await audioMgr.playLetter(text);
+    } else {
+      await audioMgr.playWord(text);
     }
-    // No TTS fallback — MP3 files will be added later
   } catch (e) {
-    console.warn('speak() error:', e);
+    // Silent — MP3 files not yet present
   }
 };
 
@@ -57,8 +56,12 @@ const playDrum = () => playTone(80, 0.18, 'sine');
 // ============================================
 // CONFETTI
 // ============================================
+let _confettiActive = false;
 function fireConfetti() {
+  if (_confettiActive) return;
+  _confettiActive = true;
   const colors = ['#4A90D9', '#6FB87F', '#E89B7C', '#9B7FBC', '#F4C95D'];
+  const pieces = [];
   for (let i = 0; i < 40; i++) {
     const piece = document.createElement('div');
     piece.className = 'confetti-piece';
@@ -68,8 +71,12 @@ function fireConfetti() {
     piece.style.animation = `confetti-fall ${1.5 + Math.random()}s ease-in forwards`;
     piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
     document.body.appendChild(piece);
-    setTimeout(() => piece.remove(), 3000);
+    pieces.push(piece);
   }
+  setTimeout(() => {
+    pieces.forEach(p => p.remove());
+    _confettiActive = false;
+  }, 3200);
 }
 
 // ============================================
@@ -111,7 +118,7 @@ function HintBubble({ children }) {
 // ============================================
 // TOP BAR / FONT CONTROL
 // ============================================
-function TopBar({ fontSize, setFontSize, onHome, onBedtime }) {
+function TopBar({ fontSize, setFontSize, muted, setMuted, onHome, onBedtime }) {
   const sizes = [
     { key: 'sm', label: 'صـ', val: 26 },
     { key: 'md', label: 'صـ', val: 32 },
@@ -143,6 +150,16 @@ function TopBar({ fontSize, setFontSize, onHome, onBedtime }) {
           style={{ width: 100 }}
           aria-label="ضبط دقيق لحجم الخط"
         />
+        {setMuted && (
+          <button
+            className="icon-btn"
+            onClick={() => setMuted(m => !m)}
+            title={muted ? 'تشغيل الصوت' : 'كتم الصوت'}
+            style={{ fontSize: 20 }}
+          >
+            {muted ? '🔇' : '🔊'}
+          </button>
+        )}
         <button className="icon-btn" onClick={onHome} title="الخريطة">🗺️</button>
         <div className="bedtime-badge" onClick={onBedtime} title="قصة قبل النوم">
           <span className="moon-icon">🌙</span>
@@ -153,7 +170,57 @@ function TopBar({ fontSize, setFontSize, onHome, onBedtime }) {
   );
 }
 
-Object.assign(window, { speak, playTone, playClap, playSuccess, playError, playDrum, fireConfetti, Reward, HintBubble, TopBar });
+// ============================================
+// TOAST NOTIFICATION SYSTEM
+// ============================================
+(function () {
+  const COLORS = {
+    success: { bg: '#e8f5e9', border: '#4caf50', icon: '✓' },
+    error:   { bg: '#fdecea', border: '#e53935', icon: '✕' },
+    info:    { bg: '#e3f2fd', border: '#1e88e5', icon: 'ℹ' },
+    saved:   { bg: '#e8f5e9', border: '#43a047', icon: '💾' },
+  };
+
+  // Inject keyframe once
+  const styleId = 'kitabi-toast-style';
+  if (!document.getElementById(styleId)) {
+    const s = document.createElement('style');
+    s.id = styleId;
+    s.textContent = `
+      #kitabi-toasts { position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none;direction:rtl; }
+      .kitabi-toast { display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;font-size:14px;font-weight:600;color:#1F3A52;border-right:4px solid;box-shadow:0 4px 16px rgba(0,0,0,0.12);opacity:0;transform:translateX(30px);transition:opacity .25s ease,transform .25s ease;pointer-events:auto;max-width:320px;font-family:inherit; }
+      .kitabi-toast.in { opacity:1;transform:translateX(0); }
+      .kitabi-toast.out { opacity:0;transform:translateX(30px); }
+      .kitabi-toast .t-icon { font-size:18px;flex-shrink:0; }
+    `;
+    document.head.appendChild(s);
+  }
+
+  function getContainer() {
+    let c = document.getElementById('kitabi-toasts');
+    if (!c) { c = document.createElement('div'); c.id = 'kitabi-toasts'; document.body.appendChild(c); }
+    return c;
+  }
+
+  window.showToast = function (message, type = 'info', duration = 3200) {
+    const scheme = COLORS[type] || COLORS.info;
+    const el = document.createElement('div');
+    el.className = 'kitabi-toast';
+    el.style.background = scheme.bg;
+    el.style.borderRightColor = scheme.border;
+    el.innerHTML = `<span class="t-icon">${scheme.icon}</span><span>${message}</span>`;
+    getContainer().appendChild(el);
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('in')));
+    const dismiss = () => {
+      el.classList.replace('in', 'out');
+      setTimeout(() => el.remove(), 300);
+    };
+    el._dismissTimer = setTimeout(dismiss, duration);
+    el.addEventListener('click', () => { clearTimeout(el._dismissTimer); dismiss(); });
+  };
+})();
+
+Object.assign(window, { speak, playTone, playClap, playSuccess, playError, playDrum, fireConfetti, Reward, HintBubble, TopBar, showToast: window.showToast });
 
 // ============================================
 // Initialize AudioManager on module load

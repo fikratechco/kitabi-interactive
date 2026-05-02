@@ -272,7 +272,24 @@ function App() {
   const [progress, setProgress] = useState({
     stars: 0, texts: {}, gamesPlayed: 0, streak: 1, completedGames: {},
   });
-  const [fontSize, setFontSize] = useState(TWEAK_DEFAULTS.fontSize);
+  const [fontSize, setFontSize] = useState(() => {
+    const saved = localStorage.getItem('kitabi_fontSize');
+    return saved ? +saved : TWEAK_DEFAULTS.fontSize;
+  });
+  const [muted, setMuted] = useState(() => {
+    return localStorage.getItem('kitabi_muted') === 'true';
+  });
+  const [library, setLibrary] = useState(window.LIBRARY || []);
+
+  useEffect(() => {
+    localStorage.setItem('kitabi_fontSize', String(fontSize));
+  }, [fontSize]);
+
+  useEffect(() => {
+    localStorage.setItem('kitabi_muted', String(muted));
+    const audioMgr = getAudioManager();
+    audioMgr.setMuted(muted);
+  }, [muted]);
   const [isLoading, setIsLoading] = useState(true);
   const [useSupabase, setUseSupabase] = useState(false);
 
@@ -280,17 +297,20 @@ function App() {
   useEffect(() => {
     const initializeSupabase = async () => {
       try {
-        // Keep voice controls visible but silent until MP3 pack is provided.
-        const audioMgr = getAudioManager();
-        audioMgr.setMuted(true);
-
         // Initialize Supabase client
         await window.initSupabase?.();
         const client = window.getSupabaseClient?.();
         
         if (client) {
           setUseSupabase(true);
-          
+
+          // Load library from Supabase (falls back to static window.LIBRARY)
+          try {
+            const contentSvc = new window.ContentService();
+            const lib = await contentSvc.getLibrary();
+            if (lib && lib.length > 0) setLibrary(lib);
+          } catch (_) { /* static fallback already set */ }
+
           // Check for existing session
           const auth = new window.AuthService();
           const currentUser = await auth.getCurrentUser();
@@ -314,6 +334,7 @@ function App() {
         }
       } catch (err) {
         console.error('Supabase init error:', err);
+        window.showToast?.('تعذر الاتصال بالخادم. تحقق من اتصالك.', 'error', 5000);
         setView('landing');
       } finally {
         setIsLoading(false);
@@ -370,17 +391,18 @@ function App() {
     const newProgress = { ...progress, texts: { ...progress.texts, [currentText.id]: nextStatus } };
     setProgress(newProgress);
     
-    // Save to database if user is logged in
     const progressChildId = activeChildId || user?.id;
     if (useSupabase && progressChildId) {
       try {
         const dataService = new window.DataService();
         await dataService.recordTextRead(progressChildId, currentBook?.id, currentText?.id, nextStatus);
+        window.showToast?.('تم حفظ القراءة ✓', 'saved');
       } catch (err) {
         console.error('Error saving reading progress:', err);
+        window.showToast?.('تعذر حفظ تقدم القراءة', 'error');
       }
     }
-    
+
     setView(hasGames ? 'games' : 'book');
   };
   const onGameComplete = async (gameId) => {
@@ -392,14 +414,15 @@ function App() {
     };
     setProgress(newProgress);
     
-    // Save to database if user is logged in
     const progressChildId = activeChildId || user?.id;
     if (useSupabase && progressChildId) {
       try {
         const dataService = new window.DataService();
         await dataService.addStar(progressChildId);
+        window.showToast?.('⭐ نجمة جديدة!', 'success', 2000);
       } catch (err) {
         console.error('Error saving game completion:', err);
+        window.showToast?.('تعذر حفظ النجمة', 'error');
       }
     }
   };
@@ -411,18 +434,18 @@ function App() {
     };
     setProgress(newProgress);
     
-    // Save to database if user is logged in
     const progressChildId = activeChildId || user?.id;
     if (useSupabase && progressChildId) {
       try {
         const dataService = new window.DataService();
-        // Record text as complete and add bonus stars
         await dataService.recordTextRead(progressChildId, currentBook?.id, currentText?.id, 'done');
         await dataService.addStar(progressChildId);
         await dataService.addStar(progressChildId);
         await dataService.addStar(progressChildId);
+        window.showToast?.('🎉 أكملت النص! +3 نجوم', 'success', 3500);
       } catch (err) {
         console.error('Error saving game completion:', err);
+        window.showToast?.('تعذر حفظ إتمام النص', 'error');
       }
     }
     
@@ -445,10 +468,11 @@ function App() {
           ...newChild,
           progress: { stars: 0, texts: {}, gamesPlayed: 0, skills: {} },
         }]);
+        window.showToast?.('تمت إضافة الطفل بنجاح ✓', 'success');
       }
     } catch (err) {
       console.error('Error adding child:', err);
-      alert('خطأ في إضافة الطفل');
+      window.showToast?.('تعذر إضافة الطفل. حاول مجدداً.', 'error');
     }
   };
 
@@ -472,6 +496,19 @@ function App() {
   // ============================================
   // RENDER
   // ============================================
+  if (isLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 20,
+        background: 'var(--bg-page, #f4f0eb)', direction: 'rtl',
+      }}>
+        <div style={{ fontSize: 80, animation: 'bounce-soft 1.2s infinite' }}>🦉</div>
+        <p style={{ fontSize: 20, color: 'var(--ink-muted, #7a8fa6)', fontWeight: 600 }}>جارٍ التحميل...</p>
+      </div>
+    );
+  }
+
   if (view === 'landing') {
     return <Landing
       onGetStarted={() => { setAuthMode('signup'); setView('auth'); }}
@@ -493,6 +530,7 @@ function App() {
     return <ChildDashboard
       user={user}
       progress={progress}
+      library={library}
       onOpenBook={openBook}
       onDiagnose={() => setView('diagnostic')}
       onIQ={() => setView('iq')}
@@ -504,6 +542,7 @@ function App() {
     return <BookDetail
       book={currentBook}
       progress={progress}
+      library={library}
       onPickText={pickText}
       onBack={() => setView('child-home')}
     />;
@@ -514,6 +553,7 @@ function App() {
       <div className="app-shell" data-screen-label="01 reading">
         <TopBar
           fontSize={fontSize} setFontSize={setFontSize}
+          muted={muted} setMuted={setMuted}
           onHome={() => setView('child-home')}
           onBedtime={() => alert('قصص قبل النوم — قريباً 🌙')}
         />
@@ -615,7 +655,7 @@ function GamesFlow({ text, progress, onGameComplete, onAllDone, onHome, onBackTo
 
   return (
     <div className="app-shell" data-screen-label={'02 games-' + cur.id}>
-      <TopBar fontSize={fontSize} setFontSize={setFontSize} onHome={onHome} onBedtime={() => {}} />
+      <TopBar fontSize={fontSize} setFontSize={setFontSize} muted={muted} setMuted={setMuted} onHome={onHome} onBedtime={() => {}} />
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' }}>
         <button className="btn-secondary" onClick={onBackToText}>← رجوع للنصوص</button>
@@ -637,12 +677,58 @@ function GamesFlow({ text, progress, onGameComplete, onAllDone, onHome, onBackTo
   );
 }
 
+// ============================================
+// ERROR BOUNDARY
+// ============================================
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error('ErrorBoundary caught:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: '100vh', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 20,
+          background: 'var(--bg-page, #f4f0eb)', padding: 32, textAlign: 'center',
+          direction: 'rtl', fontFamily: 'inherit',
+        }}>
+          <div style={{ fontSize: 72 }}>🦉</div>
+          <h2 style={{ fontSize: 26, color: 'var(--ink, #1F3A52)', margin: 0 }}>حدث خطأ غير متوقع</h2>
+          <p style={{ color: 'var(--ink-muted, #7a8fa6)', fontSize: 16, maxWidth: 360, margin: 0 }}>
+            لا تقلق — يمكنك المتابعة بإعادة تحميل الصفحة.
+          </p>
+          <button
+            className="btn-primary"
+            onClick={() => window.location.reload()}
+            style={{ marginTop: 8 }}
+          >
+            🔄 إعادة التحميل
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // Wait for components to be defined before rendering
 const renderApp = () => {
   if (typeof Landing === 'undefined') {
     setTimeout(renderApp, 100);
     return;
   }
-  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  );
 };
 renderApp();

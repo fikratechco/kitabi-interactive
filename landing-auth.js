@@ -82,6 +82,94 @@ function Landing({ onGetStarted, onLogin }) {
 }
 
 // ============================================
+// FORGOT PASSWORD SCREEN
+// ============================================
+function ForgotPassword({ onBack }) {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('يرجى إدخال بريد إلكتروني صحيح.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      const auth = typeof window.AuthService === 'function' ? new window.AuthService() : null;
+      if (!auth) throw new Error('الخدمة غير متاحة');
+      const result = await auth.resetPassword(email);
+      if (result.error) { setError(result.error); }
+      else { setSent(true); }
+    } catch (err) {
+      setError(err.message || 'حدث خطأ. حاول مجدداً.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-screen">
+      <div className="auth-card pop-in">
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <span style={{ fontSize: 48 }}>🔑</span>
+        </div>
+        <h2>استعادة كلمة المرور</h2>
+        <p className="auth-sub">سنرسل لك رابطاً لإعادة تعيين كلمة مرورك</p>
+
+        {sent ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📧</div>
+            <p style={{ color: 'var(--accent-green)', fontWeight: 700, fontSize: 16 }}>
+              تم الإرسال! تفقد بريدك الإلكتروني.
+            </p>
+            <p style={{ color: 'var(--ink-muted)', fontSize: 14, marginTop: 8 }}>
+              قد يصل في بضع دقائق — تحقق من مجلد البريد العشوائي أيضاً.
+            </p>
+            <button className="btn-secondary" style={{ marginTop: 20 }} onClick={onBack}>
+              ← العودة لتسجيل الدخول
+            </button>
+          </div>
+        ) : (
+          <>
+            {error && (
+              <div style={{ padding: 12, background: 'var(--accent-coral-soft)', color: 'var(--accent-coral)', borderRadius: 8, marginBottom: 12, fontSize: 13 }}>
+                {error}
+              </div>
+            )}
+            <div className="form-field">
+              <label>البريد الإلكتروني</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submit()}
+                placeholder="example@email.com"
+                disabled={loading}
+                autoFocus
+              />
+            </div>
+            <button
+              className="btn-primary"
+              style={{ width: '100%', justifyContent: 'center', marginTop: 8, opacity: loading ? 0.6 : 1 }}
+              onClick={submit}
+              disabled={loading}
+            >
+              {loading ? '⏳ جاري الإرسال...' : '📧 إرسال رابط الاستعادة'}
+            </button>
+            <div className="auth-toggle">
+              <a onClick={onBack} style={{ cursor: 'pointer' }}>← العودة لتسجيل الدخول</a>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
 // AUTH (Login + Signup with role)
 // ============================================
 function Auth({ mode, onAuth, onSwitchMode, onBack }) {
@@ -91,36 +179,52 @@ function Auth({ mode, onAuth, onSwitchMode, onBack }) {
   const [pw, setPw] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showForgot, setShowForgot] = useState(false);
+
+  if (showForgot) {
+    return <ForgotPassword onBack={() => setShowForgot(false)} />;
+  }
+
+  const validate = () => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('يرجى إدخال بريد إلكتروني صحيح.');
+      return false;
+    }
+    if (!pw || pw.length < 6) {
+      setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل.');
+      return false;
+    }
+    if (mode === 'signup' && name.trim().length < 2) {
+      setError('يرجى إدخال اسم لا يقل عن حرفين.');
+      return false;
+    }
+    return true;
+  };
 
   const submit = async () => {
     setError('');
+    if (!validate()) return;
     setLoading(true);
     try {
       const auth = typeof window.AuthService === 'function' ? new window.AuthService() : null;
-      
-      if (!auth) {
-        throw new Error('Authentication service not available');
-      }
+      if (!auth) throw new Error('خدمة التحقق غير متاحة حالياً.');
 
-      let userData;
+      let result;
       if (mode === 'signup') {
-        // Create new account
-        userData = await auth.signup(email, pw, name || (role === 'child' ? 'بطل صغير' : 'وليّ أمر'), role);
+        result = await auth.signup(email, pw, name.trim() || (role === 'child' ? 'بطل صغير' : 'وليّ أمر'), role);
       } else {
-        // Login to existing account
-        userData = await auth.login(email, pw);
+        result = await auth.login(email, pw);
       }
 
-      if (userData) {
-        onAuth({
-          id: userData.id,
-          email: userData.email,
-          name: userData.name,
-          role: userData.role,
-        });
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      if (result.user) {
+        onAuth({ user: result.user });
       }
     } catch (err) {
-      console.error('Auth error:', err);
       setError(err.message || 'خطأ في التحقق. يرجى المحاولة مجدداً.');
     } finally {
       setLoading(false);
@@ -153,12 +257,12 @@ function Auth({ mode, onAuth, onSwitchMode, onBack }) {
 
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 10 }}>أنا...</div>
         <div className="role-picker">
-          <div className={'role-option' + (role === 'child' ? ' active' : '')} onClick={() => setRole('child')} style={{ pointerEvents: loading ? 'none' : 'auto' }}>
+          <div className={'role-option' + (role === 'child' ? ' active' : '')} onClick={() => !loading && setRole('child')}>
             <div className="role-icon">🧒</div>
             <div className="role-label">طفل</div>
             <div className="role-desc">أريد التعلم واللعب</div>
           </div>
-          <div className={'role-option' + (role === 'parent' ? ' active' : '')} onClick={() => setRole('parent')} style={{ pointerEvents: loading ? 'none' : 'auto' }}>
+          <div className={'role-option' + (role === 'parent' ? ' active' : '')} onClick={() => !loading && setRole('parent')}>
             <div className="role-icon">👨‍👩‍👧</div>
             <div className="role-label">وليّ أمر</div>
             <div className="role-desc">أتابع تقدم أطفالي</div>
@@ -182,17 +286,25 @@ function Auth({ mode, onAuth, onSwitchMode, onBack }) {
           <input
             type="email"
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={e => { setEmail(e.target.value); setError(''); }}
             placeholder="example@email.com"
             disabled={loading}
           />
         </div>
         <div className="form-field">
-          <label>كلمة المرور</label>
+          <label>
+            كلمة المرور
+            {mode === 'signup' && (
+              <span style={{ fontSize: 11, color: 'var(--ink-muted)', marginInlineStart: 8 }}>
+                (6 أحرف على الأقل)
+              </span>
+            )}
+          </label>
           <input
             type="password"
             value={pw}
-            onChange={e => setPw(e.target.value)}
+            onChange={e => { setPw(e.target.value); setError(''); }}
+            onKeyDown={e => e.key === 'Enter' && submit()}
             placeholder="••••••••"
             disabled={loading}
           />
@@ -207,14 +319,22 @@ function Auth({ mode, onAuth, onSwitchMode, onBack }) {
           {loading ? '⏳ جاري المعالجة...' : (mode === 'signup' ? 'إنشاء الحساب' : 'دخول')}
         </button>
 
+        {mode === 'login' && (
+          <div className="auth-toggle">
+            <a onClick={() => setShowForgot(true)} style={{ cursor: 'pointer', color: 'var(--accent-blue)' }}>
+              نسيت كلمة المرور؟
+            </a>
+          </div>
+        )}
+
         <div className="auth-toggle">
           {mode === 'signup' ? 'لديك حساب؟' : 'ليس لديك حساب؟'}
-          <a onClick={() => !loading && onSwitchMode()} style={{ opacity: loading ? 0.5 : 1, pointerEvents: loading ? 'none' : 'auto' }}>
+          <a onClick={() => !loading && onSwitchMode()} style={{ opacity: loading ? 0.5 : 1, cursor: loading ? 'default' : 'pointer' }}>
             {' '}{mode === 'signup' ? 'سجّل الدخول' : 'أنشئ حساب جديد'}
           </a>
         </div>
         <div className="auth-toggle">
-          <a onClick={() => !loading && onBack()} style={{ opacity: loading ? 0.5 : 1, pointerEvents: loading ? 'none' : 'auto' }}>
+          <a onClick={() => !loading && onBack()} style={{ opacity: loading ? 0.5 : 1, cursor: loading ? 'default' : 'pointer' }}>
             ← رجوع للصفحة الرئيسية
           </a>
         </div>

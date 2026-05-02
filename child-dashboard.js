@@ -1,8 +1,52 @@
 /* global React */
 const { useState, useEffect } = React;
 
-// LIBRARY is loaded from library-data.js (window.LIBRARY)
-const LIBRARY = window.LIBRARY;
+// ============================================
+// SKELETON / SHIMMER HELPERS
+// ============================================
+(function injectSkeletonStyle() {
+  if (document.getElementById('kitabi-skeleton-style')) return;
+  const s = document.createElement('style');
+  s.id = 'kitabi-skeleton-style';
+  s.textContent = `
+    @keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+    .skel { background:linear-gradient(90deg,#e8e8e8 25%,#f5f5f5 50%,#e8e8e8 75%);background-size:800px 100%;animation:shimmer 1.4s infinite linear;border-radius:8px; }
+  `;
+  document.head.appendChild(s);
+})();
+
+function BookCardSkeleton() {
+  return (
+    <div className="book-card" style={{ pointerEvents: 'none' }}>
+      <div className="book-cover">
+        <div className="skel" style={{ width: 80, height: 80, borderRadius: '50%' }} />
+      </div>
+      <div className="book-info" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="skel" style={{ height: 18, width: '70%' }} />
+        <div className="skel" style={{ height: 13, width: '50%' }} />
+        <div className="skel" style={{ height: 6, width: '100%', borderRadius: 4 }} />
+      </div>
+    </div>
+  );
+}
+
+function ChildCardSkeleton() {
+  return (
+    <div className="child-card" style={{ pointerEvents: 'none' }}>
+      <div className="child-head" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+        <div className="skel" style={{ width: 48, height: 48, borderRadius: '50%' }} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="skel" style={{ height: 16, width: '60%' }} />
+          <div className="skel" style={{ height: 12, width: '40%' }} />
+        </div>
+      </div>
+      <div className="skel" style={{ height: 36, width: '100%', borderRadius: 8 }} />
+    </div>
+  );
+}
+
+// LIBRARY is loaded from library-data.js (window.LIBRARY) — used as fallback only
+const STATIC_LIBRARY = window.LIBRARY || [];
 
 function getTextContextIcon(text, book) {
   if (text?.icon) return text.icon;
@@ -21,12 +65,13 @@ function getTextContextIcon(text, book) {
 // ============================================
 // CHILD DASHBOARD
 // ============================================
-function ChildDashboard({ user, progress, onOpenBook, onDiagnose, onIQ, onLogout }) {
+function ChildDashboard({ user, progress, library, onOpenBook, onDiagnose, onIQ, onLogout, libraryLoading = false }) {
+  const LIB = library || STATIC_LIBRARY;
   const totalStars = progress.stars || 0;
-  const totalTexts = LIBRARY.reduce((acc, b) => acc + b.texts.length, 0);
+  const totalTexts = LIB.reduce((acc, b) => acc + b.texts.length, 0);
   const completedTexts = Object.values(progress.texts || {}).filter(t => t === 'done').length;
   const overallPct = totalTexts > 0 ? Math.round((completedTexts / totalTexts) * 100) : 0;
-  const availableBooks = LIBRARY.filter(b => !b.locked && !b.comingSoon).length;
+  const availableBooks = LIB.filter(b => !b.locked && !b.comingSoon).length;
 
   return (
     <div className="dashboard">
@@ -108,7 +153,9 @@ function ChildDashboard({ user, progress, onOpenBook, onDiagnose, onIQ, onLogout
           <div className="progress-pill">{availableBooks} كتاب متاح</div>
         </div>
         <div className="book-grid">
-          {LIBRARY.map(book => {
+          {libraryLoading
+            ? Array.from({ length: 4 }).map((_, i) => <BookCardSkeleton key={i} />)
+            : LIB.map(book => {
             const bookCompleted = book.texts.length > 0 && book.texts.every(t => progress.texts?.[t.id] === 'done');
             const bookProgress = book.texts.length > 0
               ? Math.round((book.texts.filter(t => progress.texts?.[t.id] === 'done').length / book.texts.length) * 100)
@@ -153,6 +200,7 @@ function ChildDashboard({ user, progress, onOpenBook, onDiagnose, onIQ, onLogout
 }
 
 // ============================================
+
 // BOOK DETAIL — text picker
 // ============================================
 function BookDetail({ book, progress, onPickText, onBack }) {
@@ -206,6 +254,7 @@ function BookDetail({ book, progress, onPickText, onBack }) {
   );
 }
 
-window.LIBRARY = LIBRARY;
 window.ChildDashboard = ChildDashboard;
 window.BookDetail = BookDetail;
+window.BookCardSkeleton = BookCardSkeleton;
+window.ChildCardSkeleton = ChildCardSkeleton;
