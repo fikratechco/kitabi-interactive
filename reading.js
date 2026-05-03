@@ -76,8 +76,14 @@ function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, user, g
     if (!path) { setAudioAvailable(false); return; }
 
     fetch(path, { method: 'HEAD' })
-      .then(r => setAudioAvailable(r.ok))
-      .catch(() => setAudioAvailable(false));
+      .then(r => {
+        console.log(`Audio check for ${path}: ${r.status} ${r.statusText}`);
+        setAudioAvailable(r.ok);
+      })
+      .catch(e => {
+        console.error(`Audio check failed for ${path}:`, e);
+        setAudioAvailable(false);
+      });
   }, [selectedText?.id, selectedBook?.id]);
 
   const playAll = useCallback(async () => {
