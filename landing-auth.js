@@ -1,5 +1,5 @@
 /* global React, AuthService */
-const { useState, useEffect } = React;
+const { useState } = React;
 
 // ============================================
 // LANDING PAGE

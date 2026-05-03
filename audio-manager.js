@@ -42,16 +42,28 @@ class AudioManager {
    */
   async preloadAudio(path) {
     if (this.audioCache.has(path)) return this.audioCache.get(path);
-    try {
-      const response = await fetch(path);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const blob = await response.blob();
-      this.audioCache.set(path, blob);
-      return blob;
-    } catch (e) {
-      console.warn(`Could not preload audio from ${path}:`, e.message);
-      return null;
-    }
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      audio.preload = 'auto';
+      const onReady = () => {
+        cleanup();
+        this.audioCache.set(path, path); // store path as sentinel
+        resolve(path);
+      };
+      const onError = () => {
+        cleanup();
+        console.warn(`Could not load audio from ${path}`);
+        resolve(null);
+      };
+      function cleanup() {
+        audio.removeEventListener('canplaythrough', onReady);
+        audio.removeEventListener('error', onError);
+      }
+      audio.addEventListener('canplaythrough', onReady, { once: true });
+      audio.addEventListener('error', onError, { once: true });
+      audio.src = path;
+      audio.load();
+    });
   }
 
   /**
@@ -107,12 +119,10 @@ class AudioManager {
     if (!path) { onError && onError('no-file'); return false; }
 
     this.stop();
-    let blob = this.audioCache.get(path);
-    if (!blob) blob = await this.preloadAudio(path);
-    if (!blob) { onError && onError('load-failed'); return false; }
+    const loaded = this.audioCache.get(path) || await this.preloadAudio(path);
+    if (!loaded) { onError && onError('load-failed'); return false; }
 
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
+    const audio = new Audio(path);
     audio.volume = this.muted ? 0 : this.volume;
 
     if (onProgress) {
@@ -122,12 +132,10 @@ class AudioManager {
     }
     audio.addEventListener('ended', () => {
       this.activePlaying = this.activePlaying.filter(a => a !== audio);
-      URL.revokeObjectURL(url);
       onEnded && onEnded();
     });
     audio.addEventListener('error', () => {
       this.activePlaying = this.activePlaying.filter(a => a !== audio);
-      URL.revokeObjectURL(url);
       onError && onError('playback-error');
     });
 
@@ -148,33 +156,24 @@ class AudioManager {
    * @param {string} label - Label for logging
    */
   async playAudioFile(path, label = '') {
-    // Stop current audio if configured to do so
     if (this.maxConcurrent === 1) {
       this.stop();
     }
 
     try {
-      // Fetch audio (from cache if available)
-      let blob = this.audioCache.get(path);
-      if (!blob) {
-        blob = await this.preloadAudio(path);
-      }
-
-      if (!blob) {
+      const loaded = this.audioCache.get(path) || await this.preloadAudio(path);
+      if (!loaded) {
         console.warn(`Failed to load audio: ${path}`);
         return false;
       }
 
-      // Create audio element and play
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
+      const audio = new Audio(path);
       audio.volume = this.muted ? 0 : this.volume;
-      
+
       const onEnded = () => {
         audio.removeEventListener('ended', onEnded);
         audio.removeEventListener('error', onError);
         this.activePlaying = this.activePlaying.filter(a => a !== audio);
-        URL.revokeObjectURL(url);
       };
 
       const onError = (e) => {

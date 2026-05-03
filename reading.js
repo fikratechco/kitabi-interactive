@@ -75,15 +75,18 @@ function ReadingPage({ onContinue, fontSize, selectedText, selectedBook, user, g
     const path = typeof getTextAudioPath === 'function' ? getTextAudioPath(bookId, textId) : null;
     if (!path) { setAudioAvailable(false); return; }
 
-    fetch(path, { method: 'HEAD' })
-      .then(r => {
-        console.log(`Audio check for ${path}: ${r.status} ${r.statusText}`);
-        setAudioAvailable(r.ok);
-      })
-      .catch(e => {
-        console.error(`Audio check failed for ${path}:`, e);
-        setAudioAvailable(false);
-      });
+    const probe = new Audio();
+    const done = (ok) => {
+      probe.removeEventListener('canplaythrough', onOk);
+      probe.removeEventListener('error', onErr);
+      setAudioAvailable(ok);
+    };
+    const onOk = () => done(true);
+    const onErr = () => done(false);
+    probe.addEventListener('canplaythrough', onOk, { once: true });
+    probe.addEventListener('error', onErr, { once: true });
+    probe.src = path;
+    probe.load();
   }, [selectedText?.id, selectedBook?.id]);
 
   const playAll = useCallback(async () => {
