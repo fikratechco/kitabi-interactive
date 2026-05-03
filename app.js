@@ -582,6 +582,7 @@ function App() {
       onHome={() => setView('child-home')}
       onBackToText={() => setView('book')}
       fontSize={fontSize} setFontSize={setFontSize}
+      muted={muted} setMuted={setMuted}
       user={user}
     />;
   }
@@ -626,7 +627,7 @@ function App() {
 // ============================================
 // GAMES FLOW (sequential within a text)
 // ============================================
-function GamesFlow({ text, progress, onGameComplete, onAllDone, onHome, onBackToText, fontSize, setFontSize }) {
+function GamesFlow({ text, progress, onGameComplete, onAllDone, onHome, onBackToText, fontSize, setFontSize, muted, setMuted }) {
   const games = [
     { id: 'train', label: 'القطار', Comp: GameTrain },
     { id: 'drum', label: 'الطبل', Comp: GameDrum },
